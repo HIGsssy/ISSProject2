@@ -85,9 +85,9 @@ class Child(models.Model):
     postal_code = models.CharField(max_length=10, blank=True)
     
     # Guardian information
-    guardian_name = models.CharField(max_length=200, blank=True)
-    guardian_phone = models.CharField(max_length=20, blank=True)
-    guardian_email = models.EmailField(blank=True)
+    guardian1_name = models.CharField(max_length=200, blank=True)
+    guardian1_phone = models.CharField(max_length=20, blank=True)
+    guardian1_email = models.EmailField(blank=True)
     guardian2_name = models.CharField(max_length=200, blank=True, verbose_name='Second Guardian Name')
     guardian2_phone = models.CharField(max_length=20, blank=True, verbose_name='Second Guardian Phone')
     guardian2_email = models.EmailField(blank=True, verbose_name='Second Guardian Email')

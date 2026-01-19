@@ -79,7 +79,7 @@ def all_children(request):
         children = children.filter(
             Q(first_name__icontains=search) |
             Q(last_name__icontains=search) |
-            Q(guardian_name__icontains=search)
+            Q(guardian1_name__icontains=search)
         )
     
     context = {

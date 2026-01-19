@@ -90,9 +90,9 @@ class ChildAdmin(admin.ModelAdmin):
     search_fields = [
         'first_name',
         'last_name',
-        'guardian_name',
-        'guardian_email',
-        'guardian_phone'
+        'guardian1_name',
+        'guardian1_email',
+        'guardian1_phone'
     ]
     
     ordering = ['last_name', 'first_name']
@@ -107,7 +107,7 @@ class ChildAdmin(admin.ModelAdmin):
         }),
         ('Guardian Information', {
             'fields': (
-                'guardian_name', 'guardian_phone', 'guardian_email',
+                'guardian1_name', 'guardian1_phone', 'guardian1_email',
                 'guardian2_name', 'guardian2_phone', 'guardian2_email'
             )
         }),

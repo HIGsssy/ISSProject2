@@ -59,7 +59,7 @@ class ChildViewSet(viewsets.ModelViewSet):
     queryset = Child.objects.select_related('centre', 'created_by', 'updated_by').prefetch_related('caseload_assignments')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'centre']
-    search_fields = ['first_name', 'last_name', 'guardian_name']
+    search_fields = ['first_name', 'last_name', 'guardian1_name']
     ordering_fields = ['last_name', 'first_name', 'date_of_birth', 'created_at']
     ordering = ['last_name', 'first_name']
     

@@ -111,7 +111,7 @@ class ChildDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'first_name', 'last_name', 'full_name', 'age', 'date_of_birth',
             'address_line1', 'address_line2', 'city', 'province', 'postal_code',
-            'guardian_name', 'guardian_phone', 'guardian_email',
+            'guardian1_name', 'guardian1_phone', 'guardian1_email',
             'guardian2_name', 'guardian2_phone', 'guardian2_email',
             'centre', 'centre_details', 'status', 'status_display',
             'start_date', 'end_date', 'notes',
