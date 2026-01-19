@@ -115,6 +115,11 @@ class Child(models.Model):
         blank=True,
         help_text='Date services ended (for discharged children)'
     )
+    discharge_reason = models.TextField(
+        blank=True,
+        default='',
+        help_text='Reason for discharge (required when status is discharged)'
+    )
     
     notes = models.TextField(blank=True)
     

@@ -3,7 +3,10 @@ Django views for core app.
 """
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db.models import Q
+from django.utils import timezone
+from django.core.exceptions import PermissionDenied
 from .models import Child, Visit, Centre, VisitType, CaseloadAssignment
 from accounts.models import User
 
@@ -321,6 +324,82 @@ def add_child(request):
 
 
 @login_required
+def edit_child(request, pk):
+    """Edit child information."""
+    child = get_object_or_404(Child, pk=pk)
+    
+    # All authenticated staff/supervisors/admins can edit
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['staff', 'supervisor', 'admin'])):
+        messages.error(request, "You don't have permission to edit child records.")
+        return redirect('child_detail', pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            # Update child information
+            child.first_name = request.POST.get('first_name', '').strip()
+            child.last_name = request.POST.get('last_name', '').strip()
+            child.date_of_birth = request.POST.get('date_of_birth')
+            
+            # Address fields
+            child.address_line1 = request.POST.get('address_line1', '').strip()
+            child.address_line2 = request.POST.get('address_line2', '').strip()
+            child.city = request.POST.get('city', '').strip()
+            child.province = request.POST.get('province', 'ON').strip()
+            child.postal_code = request.POST.get('postal_code', '').strip()
+            
+            # Guardian information
+            child.guardian1_name = request.POST.get('guardian1_name', '').strip()
+            child.guardian1_phone = request.POST.get('guardian1_phone', '').strip()
+            child.guardian1_email = request.POST.get('guardian1_email', '').strip()
+            child.guardian2_name = request.POST.get('guardian2_name', '').strip()
+            child.guardian2_phone = request.POST.get('guardian2_phone', '').strip()
+            child.guardian2_email = request.POST.get('guardian2_email', '').strip()
+            
+            # Centre
+            centre_id = request.POST.get('centre')
+            if centre_id:
+                child.centre_id = centre_id
+            else:
+                child.centre = None
+            
+            # Status (excluding discharged - use discharge workflow for that)
+            new_status = request.POST.get('status')
+            if new_status and new_status != 'discharged':
+                child.status = new_status
+            
+            # Notes
+            child.notes = request.POST.get('notes', '').strip()
+            
+            # Update metadata
+            child.updated_by = request.user
+            child.save()
+            
+            messages.success(request, f'{child.full_name} has been updated successfully.')
+            return redirect('child_detail', pk=child.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating child: {str(e)}')
+    
+    # Get centres for dropdown
+    centres = Centre.objects.filter(status='active').order_by('name')
+    
+    # Define available statuses (excluding discharged)
+    available_statuses = [
+        ('active', 'Active'),
+        ('on_hold', 'On Hold'),
+        ('non_caseload', 'Non-Caseload'),
+    ]
+    
+    context = {
+        'child': child,
+        'centres': centres,
+        'available_statuses': available_statuses,
+    }
+    
+    return render(request, 'core/edit_child.html', context)
+
+
+@login_required
 def manage_caseload(request, pk):
     """Manage caseload assignments for a child (supervisors/admins only)."""
     user = request.user
@@ -355,3 +434,62 @@ def manage_caseload(request, pk):
     }
     
     return render(request, 'core/manage_caseload.html', context)
+
+
+@login_required
+def discharge_child(request, pk):
+    """Discharge a child from services."""
+    child = get_object_or_404(Child, pk=pk)
+    
+    # Check permissions - only supervisors and admins can discharge
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])):
+        raise PermissionDenied("You don't have permission to discharge children.")
+    
+    # Prevent discharging already discharged children
+    if child.status == 'discharged':
+        messages.warning(request, f'{child.full_name} is already discharged.')
+        return redirect('child_detail', pk=child.pk)
+    
+    if request.method == 'POST':
+        discharge_reason = request.POST.get('discharge_reason', '').strip()
+        discharge_date = request.POST.get('discharge_date')
+        
+        if not discharge_reason:
+            messages.error(request, 'Discharge reason is required.')
+        elif not discharge_date:
+            messages.error(request, 'Discharge date is required.')
+        else:
+            try:
+                # Update child status and info
+                child.status = 'discharged'
+                child.discharge_reason = discharge_reason
+                child.end_date = discharge_date
+                child.updated_by = request.user
+                child.save()
+                
+                # Unassign all active caseload assignments
+                CaseloadAssignment.objects.filter(
+                    child=child,
+                    unassigned_at__isnull=True
+                ).update(
+                    unassigned_at=timezone.now(),
+                    updated_by=request.user
+                )
+                
+                messages.success(request, f'{child.full_name} has been discharged successfully.')
+                return redirect('child_detail', pk=child.pk)
+            except Exception as e:
+                messages.error(request, f'Error discharging child: {str(e)}')
+    
+    # Get active caseload assignments
+    active_assignments = CaseloadAssignment.objects.filter(
+        child=child,
+        unassigned_at__isnull=True
+    ).select_related('staff')
+    
+    context = {
+        'child': child,
+        'active_assignments': active_assignments,
+    }
+    
+    return render(request, 'core/discharge_child.html', context)
