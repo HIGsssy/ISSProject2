@@ -207,6 +207,22 @@ class CaseloadAssignmentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['assigned_at', 'unassigned_at']
     ordering = ['-assigned_at']
     
+    def perform_create(self, serializer):
+        """
+        When creating a new primary assignment, automatically unassign 
+        the existing primary assignment for that child.
+        """
+        if serializer.validated_data.get('is_primary'):
+            child = serializer.validated_data.get('child')
+            # Unassign existing primary
+            CaseloadAssignment.objects.filter(
+                child=child,
+                is_primary=True,
+                unassigned_at__isnull=True
+            ).update(unassigned_at=timezone.now())
+        
+        serializer.save(assigned_by=self.request.user)
+    
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get only active caseload assignments."""

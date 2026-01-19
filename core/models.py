@@ -395,18 +395,8 @@ class CaseloadAssignment(models.Model):
                 'staff': 'Only staff, supervisors, or admins can be assigned to caseloads.'
             })
         
-        # Check for duplicate active primary assignments
-        if self.is_primary and not self.unassigned_at:
-            existing = CaseloadAssignment.objects.filter(
-                child=self.child,
-                is_primary=True,
-                unassigned_at__isnull=True
-            ).exclude(pk=self.pk)
-            
-            if existing.exists():
-                raise ValidationError({
-                    'is_primary': f'Child already has a primary staff member: {existing.first().staff.get_full_name()}'
-                })
+        # Note: We don't check for duplicate primary assignments here anymore
+        # The viewset handles automatically unassigning the old primary when creating a new one
     
     def save(self, *args, **kwargs):
         self.full_clean()

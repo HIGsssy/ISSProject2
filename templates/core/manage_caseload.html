@@ -40,6 +40,13 @@
         <!-- Add Assignment -->
         <div class="bg-white shadow rounded-lg p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Add Assignment</h3>
+            {% if has_primary %}
+            <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p class="text-sm text-yellow-800">
+                    <strong>Warning:</strong> This child already has a primary staff member. Selecting "Primary" will automatically reassign the child to the new staff member.
+                </p>
+            </div>
+            {% endif %}
             <form id="addAssignmentForm">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="md:col-span-2">
@@ -57,7 +64,7 @@
                         <select name="is_primary" id="is_primary" required 
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="true">Primary</option>
-                            <option value="false">Secondary</option>
+                            <option value="false" selected>Secondary</option>
                         </select>
                     </div>
                 </div>
@@ -89,7 +96,7 @@ document.getElementById('addAssignmentForm').addEventListener('submit', async fu
     };
     
     try {
-        const response = await fetch('/api/caseload-assignments/', {
+        const response = await fetch('/api/caseloads/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -114,7 +121,7 @@ async function removeAssignment(assignmentId) {
     if (!confirm('Are you sure you want to remove this assignment?')) return;
     
     try {
-        const response = await fetch(`/api/caseload-assignments/${assignmentId}/`, {
+        const response = await fetch(`/api/caseloads/${assignmentId}/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}'

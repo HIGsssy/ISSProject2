@@ -44,12 +44,6 @@
                             Reports
                         </a>
                         {% endif %}
-                        
-                        {% if user.can_manage_caseloads %}
-                        <a href="/admin/core/caseloadassignment/" class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600">
-                            Manage Caseloads
-                        </a>
-                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -88,12 +82,6 @@
                 {% if user.can_access_reports %}
                 <a href="{% url 'reports:dashboard' %}" class="block px-3 py-2 rounded-md text-base font-medium {% if 'reports' in request.path %}bg-blue-50 text-blue-600{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
                     Reports
-                </a>
-                {% endif %}
-                
-                {% if user.can_manage_caseloads %}
-                <a href="/admin/core/caseloadassignment/" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50">
-                    Manage Caseloads
                 </a>
                 {% endif %}
             </div>

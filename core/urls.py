@@ -13,5 +13,6 @@ urlpatterns = [
     path('children/<int:pk>/', views.child_detail, name='child_detail'),
     path('children/<int:pk>/manage-caseload/', views.manage_caseload, name='manage_caseload'),
     path('visits/add/', views.add_visit, name='add_visit'),
+    path('visits/<int:pk>/', views.visit_detail, name='visit_detail'),
     path('visits/<int:pk>/edit/', views.edit_visit, name='edit_visit'),
 ]

@@ -110,18 +110,28 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Centre</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for visit in visits %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ visit.visit_date }}</td>
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <a href="{% url 'visit_detail' visit.pk %}" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            {{ visit.visit_date }}
+                        </a>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ visit.staff.get_full_name }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ visit.visit_type.name }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm {% if visit.flagged_for_review %}text-red-600 font-bold{% else %}text-gray-500{% endif %}">
                         {{ visit.duration_hours }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ visit.centre.name|default:"N/A" }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href="{% url 'visit_detail' visit.pk %}" class="text-blue-600 hover:text-blue-800">
+                            View
+                        </a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
