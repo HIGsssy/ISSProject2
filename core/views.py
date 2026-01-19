@@ -37,23 +37,17 @@ def my_caseload(request):
     """My Caseload view showing staff's assigned children."""
     user = request.user
     
-    # Get children from primary caseload assignments
-    primary_caseload = Child.objects.filter(
+    # Only staff should see caseload - supervisors/admins should not have caseloads
+    if hasattr(user, 'role') and user.role in ['supervisor', 'admin']:
+        # Redirect supervisors/admins to all children view
+        return redirect('all_children')
+    
+    # Get children from caseload assignments (primary or secondary)
+    children = Child.objects.filter(
         caseload_assignments__staff=user,
-        caseload_assignments__is_primary=True,
-        caseload_assignments__unassigned_at__isnull=True
+        caseload_assignments__unassigned_at__isnull=True,
+        status__in=['active', 'on_hold']  # Exclude discharged and non-caseload
     ).select_related('centre').prefetch_related('caseload_assignments__staff').distinct()
-    
-    # Get unique children from user's visits
-    visited_children = Child.objects.filter(
-        visits__staff=user
-    ).select_related('centre').distinct()
-    
-    # Combine
-    children = (primary_caseload | visited_children).filter(
-        Q(status__in=['active', 'on_hold', 'non_caseload']) |
-        Q(caseload_assignments__staff=user, caseload_assignments__unassigned_at__isnull=True)
-    ).distinct()
     
     context = {
         'children': children,
@@ -199,3 +193,67 @@ def edit_visit(request, pk):
     }
     
     return render(request, 'core/edit_visit.html', context)
+
+
+@login_required
+def add_child(request):
+    """Add a new child."""
+    user = request.user
+    
+    # Check permissions
+    if not (user.is_superuser or (hasattr(user, 'role') and user.role in ['staff', 'supervisor', 'admin'])):
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        # This will be handled by the frontend/API
+        return redirect('all_children')
+    
+    # Get staff members for assignment (only for supervisors/admins)
+    staff_members = None
+    is_supervisor_or_admin = user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])
+    
+    if is_supervisor_or_admin:
+        staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
+    
+    centres = Centre.objects.filter(status='active').order_by('name')
+    
+    context = {
+        'centres': centres,
+        'staff_members': staff_members,
+        'is_supervisor_or_admin': is_supervisor_or_admin,
+    }
+    
+    return render(request, 'core/add_child.html', context)
+
+
+@login_required
+def manage_caseload(request, pk):
+    """Manage caseload assignments for a child (supervisors/admins only)."""
+    user = request.user
+    
+    # Check permissions
+    if not (user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])):
+        return redirect('child_detail', pk=pk)
+    
+    child = get_object_or_404(Child, pk=pk)
+    
+    if request.method == 'POST':
+        # This will be handled by the API
+        return redirect('child_detail', pk=pk)
+    
+    # Get all staff members
+    staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
+    
+    # Get current assignments
+    current_assignments = CaseloadAssignment.objects.filter(
+        child=child,
+        unassigned_at__isnull=True
+    ).select_related('staff')
+    
+    context = {
+        'child': child,
+        'staff_members': staff_members,
+        'current_assignments': current_assignments,
+    }
+    
+    return render(request, 'core/manage_caseload.html', context)

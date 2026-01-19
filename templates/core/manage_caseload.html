@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Caseload - {{ child.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Manage Caseload</h1>
+            <p class="mt-2 text-sm text-gray-600">{{ child.full_name }}</p>
+        </div>
+
+        <!-- Current Assignments -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Current Assignments</h3>
+            {% if current_assignments %}
+            <ul class="divide-y divide-gray-200">
+                {% for assignment in current_assignments %}
+                <li class="py-3 flex justify-between items-center">
+                    <div>
+                        <span class="text-sm font-medium text-gray-900">{{ assignment.staff.get_full_name }}</span>
+                        {% if assignment.is_primary %}
+                        <span class="ml-2 px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded">Primary</span>
+                        {% else %}
+                        <span class="ml-2 px-2 py-1 text-xs font-semibold text-purple-800 bg-purple-100 rounded">Secondary</span>
+                        {% endif %}
+                    </div>
+                    <button onclick="removeAssignment({{ assignment.id }})" 
+                            class="text-red-600 hover:text-red-800 text-sm font-medium">
+                        Remove
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-gray-500">No active assignments</p>
+            {% endif %}
+        </div>
+
+        <!-- Add Assignment -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Add Assignment</h3>
+            <form id="addAssignmentForm">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="staff" class="block text-sm font-medium text-gray-700">Staff Member</label>
+                        <select name="staff" id="staff" required 
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select staff member...</option>
+                            {% for staff_member in staff_members %}
+                            <option value="{{ staff_member.id }}">{{ staff_member.get_full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="is_primary" class="block text-sm font-medium text-gray-700">Type</label>
+                        <select name="is_primary" id="is_primary" required 
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="true">Primary</option>
+                            <option value="false">Secondary</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end gap-3">
+                    <a href="{% url 'child_detail' child.id %}" 
+                       class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Back to Child
+                    </a>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        Add Assignment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add assignment
+document.getElementById('addAssignmentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        child: {{ child.id }},
+        staff: formData.get('staff'),
+        is_primary: formData.get('is_primary') === 'true'
+    };
+    
+    try {
+        const response = await fetch('/api/caseload-assignments/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Error: ' + JSON.stringify(error));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+
+// Remove assignment
+async function removeAssignment(assignmentId) {
+    if (!confirm('Are you sure you want to remove this assignment?')) return;
+    
+    try {
+        const response = await fetch(`/api/caseload-assignments/${assignmentId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+        
+        if (response.ok || response.status === 204) {
+            location.reload();
+        } else {
+            alert('Error removing assignment');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+{% endblock %}
