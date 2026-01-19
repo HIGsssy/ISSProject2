@@ -406,3 +406,113 @@ class CaseloadAssignment(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class CommunityPartner(models.Model):
+    """Community partners for referrals (e.g., therapists, social services, etc.)."""
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+    ]
+    
+    PARTNER_TYPE_CHOICES = [
+        ('speech_therapy', 'Speech Therapy'),
+        ('occupational_therapy', 'Occupational Therapy'),
+        ('physical_therapy', 'Physical Therapy'),
+        ('behavioural_therapy', 'Behavioural Therapy'),
+        ('social_services', 'Social Services'),
+        ('medical', 'Medical/Healthcare'),
+        ('educational', 'Educational Services'),
+        ('other', 'Other'),
+    ]
+    
+    name = models.CharField(max_length=200)
+    partner_type = models.CharField(max_length=50, choices=PARTNER_TYPE_CHOICES, default='other')
+    
+    # Contact information
+    contact_name = models.CharField(max_length=200, blank=True, verbose_name='Primary Contact')
+    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+    
+    # Address fields
+    address_line1 = models.CharField(max_length=200, blank=True, verbose_name='Address Line 1')
+    address_line2 = models.CharField(max_length=200, blank=True, verbose_name='Address Line 2')
+    city = models.CharField(max_length=100, blank=True)
+    province = models.CharField(max_length=50, blank=True, default='ON')
+    postal_code = models.CharField(max_length=10, blank=True)
+    
+    website = models.URLField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    notes = models.TextField(blank=True, help_text='General notes about this partner')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Community Partner'
+        verbose_name_plural = 'Community Partners'
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_partner_type_display()})"
+
+
+class Referral(models.Model):
+    """Referrals from children to community partners."""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    child = models.ForeignKey(
+        Child,
+        on_delete=models.PROTECT,
+        related_name='referrals'
+    )
+    community_partner = models.ForeignKey(
+        CommunityPartner,
+        on_delete=models.PROTECT,
+        related_name='referrals'
+    )
+    referred_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='referrals_made'
+    )
+    
+    referral_date = models.DateField(default=timezone.now)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    reason = models.TextField(help_text='Reason for referral')
+    notes = models.TextField(blank=True, help_text='Additional notes or follow-up information')
+    
+    # Tracking fields
+    status_updated_at = models.DateTimeField(null=True, blank=True)
+    status_updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='referral_status_updates'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-referral_date']
+        verbose_name = 'Referral'
+        verbose_name_plural = 'Referrals'
+        indexes = [
+            models.Index(fields=['child', 'referral_date']),
+            models.Index(fields=['community_partner', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.child.full_name} → {self.community_partner.name} ({self.referral_date})"

@@ -17,4 +17,10 @@ urlpatterns = [
     path('visits/add/', views.add_visit, name='add_visit'),
     path('visits/<int:pk>/', views.visit_detail, name='visit_detail'),
     path('visits/<int:pk>/edit/', views.edit_visit, name='edit_visit'),
+    path('community-partners/', views.community_partners, name='community_partners'),
+    path('community-partners/add/', views.add_community_partner, name='add_community_partner'),
+    path('community-partners/<int:pk>/edit/', views.edit_community_partner, name='edit_community_partner'),
+    path('referrals/', views.referrals_management, name='referrals_management'),
+    path('referrals/add/<int:child_pk>/', views.add_referral, name='add_referral'),
+    path('referrals/<int:pk>/edit/', views.edit_referral, name='edit_referral'),
 ]
