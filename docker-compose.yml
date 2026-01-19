@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: iss_portal_db
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-iss_portal_db}
+      - POSTGRES_USER=${POSTGRES_USER:-iss_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
+    volumes:
+      - iss_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iss_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iss_network
+
+  # Django Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iss_portal_web
+    command: gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 60 --access-logfile - --error-logfile - iss_portal.wsgi:application
+    volumes:
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - iss_network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: iss_portal_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./staticfiles:/app/staticfiles:ro
+      - ./media:/app/media:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      # For Let's Encrypt (production)
+      # - ./nginx/certbot/conf:/etc/letsencrypt:ro
+      # - ./nginx/certbot/www:/var/www/certbot:ro
+    depends_on:
+      - web
+    networks:
+      - iss_network
+    restart: unless-stopped
+
+  # Certbot for Let's Encrypt (uncomment for production)
+  # certbot:
+  #   image: certbot/certbot
+  #   container_name: iss_portal_certbot
+  #   volumes:
+  #     - ./nginx/certbot/conf:/etc/letsencrypt
+  #     - ./nginx/certbot/www:/var/www/certbot
+  #   entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+  #   networks:
+  #     - iss_network
+
+volumes:
+  iss_postgres_data:
+    name: iss_postgres_data
+
+networks:
+  iss_network:
+    name: iss_network
+    driver: bridge

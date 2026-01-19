@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ child.full_name }} - ISS Portal{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ child.full_name }}</h1>
+            <p class="mt-2 text-gray-600">Child Record Details</p>
+        </div>
+        <span class="status-badge status-{{ child.status }}">
+            {{ child.get_status_display }}
+        </span>
+    </div>
+</div>
+
+<!-- Child Information Card -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Child Information</h3>
+    </div>
+    <div class="px-4 py-5 sm:p-6">
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Date of Birth</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.date_of_birth }} ({{ child.age }} years old)</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Centre</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.centre.name|default:"Not assigned" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Guardian</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian_name|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Guardian Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian_phone|default:"N/A" }}</dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<!-- Caseload Assignments -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Caseload Assignments</h3>
+    </div>
+    <div class="px-4 py-5 sm:p-6">
+        {% if caseload_assignments %}
+        <ul class="divide-y divide-gray-200">
+            {% for assignment in caseload_assignments %}
+            <li class="py-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">
+                            {{ assignment.staff.get_full_name }}
+                            {% if assignment.is_primary %}
+                            <span class="ml-2 px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded">Primary</span>
+                            {% endif %}
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            Assigned: {{ assignment.assigned_at|date:"Y-m-d" }}
+                            {% if assignment.unassigned_at %}
+                            - Ended: {{ assignment.unassigned_at|date:"Y-m-d" }}
+                            {% else %}
+                            <span class="text-green-600 font-semibold">Active</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500">No caseload assignments.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Visits -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Visits</h3>
+        <a href="{% url 'add_visit' %}?child_id={{ child.pk }}" 
+           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+            Log New Visit
+        </a>
+    </div>
+    {% if visits %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Centre</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for visit in visits %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ visit.visit_date }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ visit.staff.get_full_name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ visit.visit_type.name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm {% if visit.flagged_for_review %}text-red-600 font-bold{% else %}text-gray-500{% endif %}">
+                        {{ visit.duration_hours }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ visit.centre.name|default:"N/A" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-8 text-center">
+        <p class="text-gray-500">No visits recorded yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
