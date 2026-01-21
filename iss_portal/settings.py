@@ -105,6 +105,16 @@ TIME_ZONE = config('TZ', default='America/New_York')
 USE_I18N = True
 USE_TZ = True
 
+# Field-level encryption
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='')
+
+if not FIELD_ENCRYPTION_KEY and not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        'FIELD_ENCRYPTION_KEY must be set in production. '
+        'Generate one with: python manage.py generate_encryption_key'
+    )
+
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'

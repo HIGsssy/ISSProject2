@@ -9,11 +9,13 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies (including cryptography dependencies)
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     libpq-dev \
     gcc \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
@@ -30,10 +32,12 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Install runtime dependencies only
+# Install runtime dependencies only (including cryptography runtime deps)
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     libpq-dev \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user

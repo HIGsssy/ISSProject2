@@ -21,11 +21,8 @@ class Command(BaseCommand):
         
         # Check for existing admin user
         if not User.objects.filter(is_superuser=True).exists():
-            self.stdout.write(self.style.WARNING('\nNo admin user found.'))
-            create_admin = input('Create admin user now? (yes/no): ').lower()
-            
-            if create_admin == 'yes':
-                self.create_admin_user()
+            self.stdout.write(self.style.WARNING('\nNo admin user found. Creating default admin...'))
+            self.create_admin_user()
         else:
             self.stdout.write(self.style.SUCCESS('\nAdmin user already exists.'))
         
@@ -68,31 +65,17 @@ class Command(BaseCommand):
                 self.stdout.write(f'  - Visit type already exists: {visit_type.name}')
     
     def create_admin_user(self):
-        """Create admin user interactively."""
+        """Create default admin user automatically."""
         self.stdout.write('\n' + '='*50)
-        self.stdout.write(self.style.WARNING('CREATE ADMIN USER'))
+        self.stdout.write(self.style.WARNING('CREATING DEFAULT ADMIN USER'))
         self.stdout.write('='*50 + '\n')
         
-        username = input('Username: ').strip()
-        if not username:
-            self.stdout.write(self.style.ERROR('Username cannot be empty. Skipping admin creation.'))
-            return
-        
-        email = input('Email: ').strip()
-        first_name = input('First name: ').strip()
-        last_name = input('Last name: ').strip()
-        
-        password = None
-        while not password:
-            password = input('Password: ').strip()
-            if not password:
-                self.stdout.write(self.style.ERROR('Password cannot be empty.'))
-                continue
-            
-            password_confirm = input('Password (confirm): ').strip()
-            if password != password_confirm:
-                self.stdout.write(self.style.ERROR('Passwords do not match.'))
-                password = None
+        # Default credentials
+        username = 'admin'
+        email = 'admin@example.com'
+        password = 'admin123'
+        first_name = 'Admin'
+        last_name = 'User'
         
         try:
             with transaction.atomic():
@@ -106,10 +89,12 @@ class Command(BaseCommand):
                 user.role = 'admin'
                 user.save()
             
-            self.stdout.write(self.style.SUCCESS(f'\n✓ Admin user created successfully: {username}'))
-            self.stdout.write(f'  Email: {email}')
-            self.stdout.write(f'  Name: {first_name} {last_name}')
-            self.stdout.write(f'  Role: Administrator')
+            self.stdout.write(self.style.SUCCESS(f'\n✓ Default admin user created!'))
+            self.stdout.write(self.style.WARNING('\n⚠️  IMPORTANT - DEFAULT CREDENTIALS:'))
+            self.stdout.write(f'  Username: {username}')
+            self.stdout.write(f'  Password: {password}')
+            self.stdout.write(self.style.ERROR('\n  ⚠️  CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST LOGIN!'))
+            self.stdout.write('='*50)
         
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'\n✗ Error creating admin user: {str(e)}'))

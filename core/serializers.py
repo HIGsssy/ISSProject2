@@ -111,7 +111,7 @@ class ChildDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'first_name', 'last_name', 'full_name', 'age', 'date_of_birth',
             'address_line1', 'address_line2', 'city', 'province', 'postal_code',
-            'guardian_name', 'guardian_phone', 'guardian_email',
+            'guardian1_name', 'guardian1_phone', 'guardian1_email',
             'guardian2_name', 'guardian2_phone', 'guardian2_email',
             'centre', 'centre_details', 'status', 'status_display',
             'start_date', 'end_date', 'notes',
@@ -121,6 +121,123 @@ class ChildDetailSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_at', 'updated_at', 'created_by', 'updated_by'
         ]
+
+
+class ChildCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating children with optional caseload assignment."""
+    
+    assign_to_staff = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role='staff'),
+        required=False,
+        allow_null=True,
+        write_only=True,
+        help_text="Primary staff member to assign (supervisors/admins only)"
+    )
+    assign_to_self = serializers.BooleanField(
+        required=False,
+        write_only=True,
+        default=False,
+        help_text="Assign to current user (staff only, ignored for supervisors/admins)"
+    )
+    secondary_staff = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role='staff'),
+        many=True,
+        required=False,
+        write_only=True,
+        help_text="Secondary staff members to assign (optional)"
+    )
+    
+    class Meta:
+        model = Child
+        fields = [
+            'id', 'first_name', 'last_name', 'date_of_birth',
+            'address_line1', 'address_line2', 'city', 'province', 'postal_code',
+            'guardian1_name', 'guardian1_phone', 'guardian1_email',
+            'guardian2_name', 'guardian2_phone', 'guardian2_email',
+            'centre', 'status', 'start_date', 'end_date', 'notes',
+            'assign_to_staff', 'assign_to_self', 'secondary_staff'
+        ]
+        read_only_fields = ['id']
+    
+    def validate(self, data):
+        """Validate child creation with caseload assignment logic."""
+        request = self.context.get('request')
+        user = request.user if request else None
+        
+        assign_to_staff = data.get('assign_to_staff')
+        assign_to_self = data.get('assign_to_self', False)
+        status = data.get('status', 'active')
+        
+        # Supervisors and admins should not assign to themselves
+        if user and hasattr(user, 'role') and user.role in ['supervisor', 'admin']:
+            if assign_to_self:
+                raise serializers.ValidationError({
+                    'assign_to_self': 'Supervisors and admins cannot have their own caseload.'
+                })
+            # For non-caseload children, assignment is optional
+            if status != 'non_caseload' and not assign_to_staff:
+                raise serializers.ValidationError({
+                    'assign_to_staff': 'You must assign this child to a staff member.'
+                })
+        
+        # Staff members can only assign to themselves
+        if user and hasattr(user, 'role') and user.role == 'staff':
+            if assign_to_staff:
+                raise serializers.ValidationError({
+                    'assign_to_staff': 'Staff members can only assign children to their own caseload.'
+                })
+        
+        return data
+    
+    def create(self, validated_data):
+        """Create child and handle caseload assignments."""
+        request = self.context.get('request')
+        user = request.user if request else None
+        
+        # Extract caseload assignment fields
+        assign_to_staff = validated_data.pop('assign_to_staff', None)
+        assign_to_self = validated_data.pop('assign_to_self', False)
+        secondary_staff = validated_data.pop('secondary_staff', [])
+        
+        # Set created_by
+        if user:
+            validated_data['created_by'] = user
+            validated_data['updated_by'] = user
+        
+        # Create the child
+        child = Child.objects.create(**validated_data)
+        
+        # Handle caseload assignments (skip for non-caseload children)
+        if child.status != 'non_caseload':
+            primary_staff = None
+            
+            # Determine primary staff
+            if user and hasattr(user, 'role'):
+                if user.role in ['supervisor', 'admin'] and assign_to_staff:
+                    primary_staff = assign_to_staff
+                elif user.role == 'staff' and assign_to_self:
+                    primary_staff = user
+            
+            # Create primary assignment
+            if primary_staff:
+                CaseloadAssignment.objects.create(
+                    child=child,
+                    staff=primary_staff,
+                    is_primary=True,
+                    assigned_by=user
+                )
+            
+            # Create secondary assignments
+            for staff_member in secondary_staff:
+                if staff_member != primary_staff:  # Avoid duplicate
+                    CaseloadAssignment.objects.create(
+                        child=child,
+                        staff=staff_member,
+                        is_primary=False,
+                        assigned_by=user
+                    )
+        
+        return child
 
 
 class VisitTypeSerializer(serializers.ModelSerializer):

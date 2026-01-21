@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from .models import Centre, Child, VisitType, Visit, CaseloadAssignment
 from .serializers import (
-    CentreSerializer, ChildListSerializer, ChildDetailSerializer,
+    CentreSerializer, ChildListSerializer, ChildDetailSerializer, ChildCreateSerializer,
     VisitTypeSerializer, VisitSerializer, VisitCreateSerializer,
     CaseloadAssignmentSerializer
 )
@@ -59,46 +59,48 @@ class ChildViewSet(viewsets.ModelViewSet):
     queryset = Child.objects.select_related('centre', 'created_by', 'updated_by').prefetch_related('caseload_assignments')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'centre']
-    search_fields = ['first_name', 'last_name', 'guardian_name']
+    search_fields = ['first_name', 'last_name', 'guardian1_name']
     ordering_fields = ['last_name', 'first_name', 'date_of_birth', 'created_at']
     ordering = ['last_name', 'first_name']
     
     def get_serializer_class(self):
         if self.action == 'list':
             return ChildListSerializer
+        elif self.action == 'create':
+            return ChildCreateSerializer
         return ChildDetailSerializer
     
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ['update', 'partial_update', 'destroy']:
+            # Only supervisors and admins can edit/delete
             permission_classes = [IsSupervisorOrAdmin]
         else:
+            # Staff, supervisors, and admins can create and view
             permission_classes = [IsStaffMember]
         return [permission() for permission in permission_classes]
+    
+    def perform_update(self, serializer):
+        """Track who updated the child."""
+        serializer.save(updated_by=self.request.user)
     
     @action(detail=False, methods=['get'])
     def my_caseload(self, request):
         """
         Get children in the current staff member's caseload.
-        Includes primary assignments and children they've visited.
+        Only includes actual caseload assignments, not visits.
+        Supervisors/admins should not have caseloads.
         """
         user = request.user
         
-        # Get children from primary caseload assignments
-        primary_caseload = Child.objects.filter(
+        # Supervisors and admins should not have caseloads
+        if hasattr(user, 'role') and user.role in ['supervisor', 'admin']:
+            return Response({'detail': 'Supervisors and admins do not have caseloads.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get children from caseload assignments (primary or secondary)
+        children = Child.objects.filter(
             caseload_assignments__staff=user,
-            caseload_assignments__is_primary=True,
-            caseload_assignments__unassigned_at__isnull=True
-        ).distinct()
-        
-        # Get unique children from user's visits (including non-caseload)
-        visited_children = Child.objects.filter(
-            visits__staff=user
-        ).distinct()
-        
-        # Combine and exclude discharged children unless they have an active assignment
-        children = (primary_caseload | visited_children).filter(
-            Q(status__in=['active', 'on_hold', 'non_caseload']) |
-            Q(caseload_assignments__staff=user, caseload_assignments__unassigned_at__isnull=True)
+            caseload_assignments__unassigned_at__isnull=True,
+            status__in=['active', 'on_hold']  # Exclude discharged and non-caseload
         ).distinct()
         
         serializer = ChildListSerializer(children, many=True)
@@ -204,6 +206,22 @@ class CaseloadAssignmentViewSet(viewsets.ModelViewSet):
     filterset_fields = ['child', 'staff', 'is_primary']
     ordering_fields = ['assigned_at', 'unassigned_at']
     ordering = ['-assigned_at']
+    
+    def perform_create(self, serializer):
+        """
+        When creating a new primary assignment, automatically unassign 
+        the existing primary assignment for that child.
+        """
+        if serializer.validated_data.get('is_primary'):
+            child = serializer.validated_data.get('child')
+            # Unassign existing primary
+            CaseloadAssignment.objects.filter(
+                child=child,
+                is_primary=True,
+                unassigned_at__isnull=True
+            ).update(unassigned_at=timezone.now())
+        
+        serializer.save(assigned_by=self.request.user)
     
     @action(detail=False, methods=['get'])
     def active(self, request):
