@@ -13,6 +13,11 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
+from encrypted_model_fields.fields import (
+    EncryptedCharField,
+    EncryptedTextField,
+    EncryptedEmailField
+)
 
 
 class Centre(models.Model):
@@ -25,21 +30,21 @@ class Centre(models.Model):
     
     name = models.CharField(max_length=200)
     
-    # Address fields
-    address_line1 = models.CharField(max_length=200, verbose_name='Address Line 1')
-    address_line2 = models.CharField(max_length=200, blank=True, verbose_name='Address Line 2')
-    city = models.CharField(max_length=100)
-    province = models.CharField(max_length=50, default='ON')
-    postal_code = models.CharField(max_length=10)
+    # Address fields - encrypted
+    address_line1 = EncryptedCharField(max_length=200, verbose_name='Address Line 1')
+    address_line2 = EncryptedCharField(max_length=200, blank=True, verbose_name='Address Line 2')
+    city = EncryptedCharField(max_length=100)
+    province = EncryptedCharField(max_length=50, default='ON')
+    postal_code = EncryptedCharField(max_length=10)
     
-    phone = models.CharField(max_length=20)
+    phone = EncryptedCharField(max_length=20)
     
-    # Primary contact
-    contact_name = models.CharField(max_length=200, blank=True)
-    contact_email = models.EmailField(blank=True)
+    # Primary contact - encrypted
+    contact_name = EncryptedCharField(max_length=200, blank=True)
+    contact_email = EncryptedEmailField(blank=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    notes = models.TextField(blank=True)
+    notes = EncryptedTextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -72,25 +77,25 @@ class Child(models.Model):
         ('non_caseload', 'Non-Caseload'),
     ]
     
-    # Basic information
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    # Basic information - encrypted
+    first_name = EncryptedCharField(max_length=100)
+    last_name = EncryptedCharField(max_length=100)
     date_of_birth = models.DateField()
     
-    # Address fields
-    address_line1 = models.CharField(max_length=200, blank=True, verbose_name='Address Line 1')
-    address_line2 = models.CharField(max_length=200, blank=True, verbose_name='Address Line 2')
-    city = models.CharField(max_length=100, blank=True)
-    province = models.CharField(max_length=50, blank=True, default='ON')
-    postal_code = models.CharField(max_length=10, blank=True)
+    # Address fields - encrypted
+    address_line1 = EncryptedCharField(max_length=200, blank=True, verbose_name='Address Line 1')
+    address_line2 = EncryptedCharField(max_length=200, blank=True, verbose_name='Address Line 2')
+    city = EncryptedCharField(max_length=100, blank=True)
+    province = EncryptedCharField(max_length=50, blank=True, default='ON')
+    postal_code = EncryptedCharField(max_length=10, blank=True)
     
-    # Guardian information
-    guardian1_name = models.CharField(max_length=200, blank=True)
-    guardian1_phone = models.CharField(max_length=20, blank=True)
-    guardian1_email = models.EmailField(blank=True)
-    guardian2_name = models.CharField(max_length=200, blank=True, verbose_name='Second Guardian Name')
-    guardian2_phone = models.CharField(max_length=20, blank=True, verbose_name='Second Guardian Phone')
-    guardian2_email = models.EmailField(blank=True, verbose_name='Second Guardian Email')
+    # Guardian information - encrypted
+    guardian1_name = EncryptedCharField(max_length=200, blank=True)
+    guardian1_phone = EncryptedCharField(max_length=20, blank=True)
+    guardian1_email = EncryptedEmailField(blank=True)
+    guardian2_name = EncryptedCharField(max_length=200, blank=True, verbose_name='Second Guardian Name')
+    guardian2_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Phone')
+    guardian2_email = EncryptedEmailField(blank=True, verbose_name='Second Guardian Email')
     
     # Optional centre association
     centre = models.ForeignKey(
@@ -115,13 +120,13 @@ class Child(models.Model):
         blank=True,
         help_text='Date services ended (for discharged children)'
     )
-    discharge_reason = models.TextField(
+    discharge_reason = EncryptedTextField(
         blank=True,
         default='',
         help_text='Reason for discharge (required when status is discharged)'
     )
     
-    notes = models.TextField(blank=True)
+    notes = EncryptedTextField(blank=True)
     
     # Audit fields
     created_at = models.DateTimeField(auto_now_add=True)
@@ -247,14 +252,14 @@ class Visit(models.Model):
         related_name='visits'
     )
     
-    # For visits not at a tracked centre
-    location_description = models.CharField(
+    # For visits not at a tracked centre - encrypted
+    location_description = EncryptedCharField(
         max_length=200,
         blank=True,
         help_text='Description of visit location if not at a tracked centre'
     )
     
-    notes = models.TextField(
+    notes = EncryptedTextField(
         blank=True,
         help_text='Visit notes (include co-visitors here if applicable)'
     )
@@ -430,21 +435,21 @@ class CommunityPartner(models.Model):
     name = models.CharField(max_length=200)
     partner_type = models.CharField(max_length=50, choices=PARTNER_TYPE_CHOICES, default='other')
     
-    # Contact information
-    contact_name = models.CharField(max_length=200, blank=True, verbose_name='Primary Contact')
-    phone = models.CharField(max_length=20, blank=True)
-    email = models.EmailField(blank=True)
+    # Contact information - encrypted
+    contact_name = EncryptedCharField(max_length=200, blank=True, verbose_name='Primary Contact')
+    phone = EncryptedCharField(max_length=20, blank=True)
+    email = EncryptedEmailField(blank=True)
     
-    # Address fields
-    address_line1 = models.CharField(max_length=200, blank=True, verbose_name='Address Line 1')
-    address_line2 = models.CharField(max_length=200, blank=True, verbose_name='Address Line 2')
-    city = models.CharField(max_length=100, blank=True)
-    province = models.CharField(max_length=50, blank=True, default='ON')
-    postal_code = models.CharField(max_length=10, blank=True)
+    # Address fields - encrypted
+    address_line1 = EncryptedCharField(max_length=200, blank=True, verbose_name='Address Line 1')
+    address_line2 = EncryptedCharField(max_length=200, blank=True, verbose_name='Address Line 2')
+    city = EncryptedCharField(max_length=100, blank=True)
+    province = EncryptedCharField(max_length=50, blank=True, default='ON')
+    postal_code = EncryptedCharField(max_length=10, blank=True)
     
     website = models.URLField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    notes = models.TextField(blank=True, help_text='General notes about this partner')
+    notes = EncryptedTextField(blank=True, help_text='General notes about this partner')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -489,8 +494,8 @@ class Referral(models.Model):
     referral_date = models.DateField(default=timezone.now)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
-    reason = models.TextField(help_text='Reason for referral')
-    notes = models.TextField(blank=True, help_text='Additional notes or follow-up information')
+    reason = EncryptedTextField(help_text='Reason for referral')
+    notes = EncryptedTextField(blank=True, help_text='Additional notes or follow-up information')
     
     # Tracking fields
     status_updated_at = models.DateTimeField(null=True, blank=True)
