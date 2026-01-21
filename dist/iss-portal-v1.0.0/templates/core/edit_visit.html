@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Visit - ISS Portal{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Edit Visit</h1>
+    <p class="mt-2 text-gray-600">Modify visit details for {{ visit.child.full_name }}</p>
+</div>
+
+<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-yellow-700">
+                Changes to this visit will be tracked in the audit log.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="max-w-2xl mx-auto bg-white shadow rounded-lg p-6">
+    <form id="visitForm" class="space-y-6">
+        {% csrf_token %}
+        <input type="hidden" name="visit_id" value="{{ visit.pk }}">
+        
+        <!-- Child (Read-only) -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Child</label>
+            <input type="text" value="{{ visit.child.full_name }}" readonly
+                   class="block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
+        </div>
+        
+        <!-- Visit Date -->
+        <div>
+            <label for="visit_date" class="block text-sm font-medium text-gray-700 mb-2">
+                Visit Date <span class="text-red-500">*</span>
+            </label>
+            <input type="date" id="visit_date" name="visit_date" value="{{ visit.visit_date|date:'Y-m-d' }}" required
+                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        
+        <!-- Time Fields -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="start_time" class="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time <span class="text-red-500">*</span>
+                </label>
+                <input type="time" id="start_time" name="start_time" value="{{ visit.start_time|time:'H:i' }}" required
+                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div>
+                <label for="end_time" class="block text-sm font-medium text-gray-700 mb-2">
+                    End Time <span class="text-red-500">*</span>
+                </label>
+                <input type="time" id="end_time" name="end_time" value="{{ visit.end_time|time:'H:i' }}" required
+                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+        </div>
+        
+        <!-- Duration Display -->
+        <div id="durationDisplay" class="p-3 bg-blue-50 rounded-md">
+            <span class="text-sm text-blue-800">Duration: <span id="durationText" class="font-semibold">{{ visit.duration_hours }}</span></span>
+        </div>
+        
+        <!-- Warning for 7+ hour visits -->
+        <div id="durationWarning" class="{% if not visit.flagged_for_review %}hidden{% endif %} p-3 bg-red-50 rounded-md border border-red-200">
+            <p class="text-sm text-red-800">
+                ⚠ <strong>Warning:</strong> Visit duration exceeds 7 hours and will be flagged for review.
+            </p>
+        </div>
+        
+        <!-- Visit Type -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Visit Type <span class="text-red-500">*</span>
+            </label>
+            <div class="space-y-2">
+                {% for visit_type in visit_types %}
+                <label class="flex items-center p-3 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer">
+                    <input type="radio" name="visit_type" value="{{ visit_type.pk }}" 
+                           {% if visit.visit_type.pk == visit_type.pk %}checked{% endif %} required
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                    <span class="ml-3 text-sm text-gray-900">{{ visit_type.name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Centre (Historical - Read-only with note) -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Centre <span class="text-xs text-gray-500">(Historical snapshot - cannot be changed)</span>
+            </label>
+            <input type="text" value="{{ visit.centre.name|default:'Not at a tracked centre' }}" readonly
+                   class="block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
+        </div>
+        
+        <!-- Location Description -->
+        <div>
+            <label for="location_description" class="block text-sm font-medium text-gray-700 mb-2">
+                Location Description
+            </label>
+            <input type="text" id="location_description" name="location_description" 
+                   value="{{ visit.location_description }}"
+                   placeholder="e.g., Home visit, Community centre"
+                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        
+        <!-- Notes -->
+        <div>
+            <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <textarea id="notes" name="notes" rows="4"
+                      class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">{{ visit.notes }}</textarea>
+        </div>
+        
+        <!-- Submit Buttons -->
+        <div class="flex flex-col sm:flex-row gap-3 pt-4">
+            <button type="submit" 
+                    class="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                Update Visit
+            </button>
+            <a href="{% url 'child_detail' visit.child.pk %}" 
+               class="flex-1 inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Calculate duration when times change
+    function calculateDuration() {
+        const startTime = document.getElementById('start_time').value;
+        const endTime = document.getElementById('end_time').value;
+        
+        if (startTime && endTime) {
+            const start = new Date('2000-01-01 ' + startTime);
+            let end = new Date('2000-01-01 ' + endTime);
+            
+            if (end < start) {
+                end = new Date('2000-01-02 ' + endTime);
+            }
+            
+            const diff = (end - start) / 1000 / 60 / 60;
+            
+            if (diff > 0) {
+                const hours = Math.floor(diff);
+                const minutes = Math.round((diff - hours) * 60);
+                
+                document.getElementById('durationText').textContent = `${hours}h ${minutes}m`;
+                
+                if (diff >= 7) {
+                    document.getElementById('durationWarning').classList.remove('hidden');
+                } else {
+                    document.getElementById('durationWarning').classList.add('hidden');
+                }
+            }
+        }
+    }
+    
+    document.getElementById('start_time').addEventListener('change', calculateDuration);
+    document.getElementById('end_time').addEventListener('change', calculateDuration);
+    
+    // Form submission via API
+    document.getElementById('visitForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const visitId = {{ visit.pk }};
+        const data = {
+            visit_date: formData.get('visit_date'),
+            start_time: formData.get('start_time'),
+            end_time: formData.get('end_time'),
+            visit_type: parseInt(formData.get('visit_type')),
+            location_description: formData.get('location_description') || '',
+            notes: formData.get('notes') || ''
+        };
+        
+        try {
+            const response = await fetch(`/api/visits/${visitId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                window.location.href = '{% url "child_detail" visit.child.pk %}';
+            } else {
+                const errorData = await response.json();
+                alert('Error updating visit: ' + JSON.stringify(errorData));
+            }
+        } catch (error) {
+            alert('Error updating visit: ' + error.message);
+        }
+    });
+</script>
+{% endblock %}
