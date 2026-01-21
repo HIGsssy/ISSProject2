@@ -490,8 +490,7 @@ def discharge_child(request, pk):
                     child=child,
                     unassigned_at__isnull=True
                 ).update(
-                    unassigned_at=timezone.now(),
-                    updated_by=request.user
+                    unassigned_at=timezone.now()
                 )
                 
                 messages.success(request, f'{child.full_name} has been discharged successfully.')
