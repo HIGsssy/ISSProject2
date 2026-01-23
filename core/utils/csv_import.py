@@ -24,7 +24,6 @@ class ChildCSVImporter:
     - first_name
     - last_name
     - date_of_birth (YYYY-MM-DD)
-    - status (active, on_hold, discharged, non_caseload)
     
     Optional fields:
     - address_line1, address_line2, city, province, postal_code
@@ -32,19 +31,23 @@ class ChildCSVImporter:
     - guardian2_name, guardian2_phone, guardian2_email
     - centre (centre name)
     - start_date (YYYY-MM-DD, defaults to today)
-    - end_date (YYYY-MM-DD, required if status=discharged)
-    - discharge_reason (required if status=discharged)
+    - end_date (YYYY-MM-DD, for discharged children)
+    - discharge_reason (for discharged children)
     - notes
+    - on_hold (true/false, defaults to false)
+    
+    Note: All imported children default to 'active' overall_status and
+    'awaiting_assignment' caseload_status. Discharge should be done through
+    the discharge workflow, not via import.
     """
     
-    REQUIRED_FIELDS = ['first_name', 'last_name', 'date_of_birth', 'status']
+    REQUIRED_FIELDS = ['first_name', 'last_name', 'date_of_birth']
     OPTIONAL_FIELDS = [
         'address_line1', 'address_line2', 'city', 'province', 'postal_code',
         'guardian1_name', 'guardian1_phone', 'guardian1_email',
         'guardian2_name', 'guardian2_phone', 'guardian2_email',
-        'centre', 'start_date', 'end_date', 'discharge_reason', 'notes'
+        'centre', 'start_date', 'end_date', 'discharge_reason', 'notes', 'on_hold'
     ]
-    VALID_STATUSES = ['active', 'on_hold', 'discharged', 'non_caseload']
     
     def __init__(self, csv_file, user):
         """
@@ -151,12 +154,12 @@ class ChildCSVImporter:
         except ValueError:
             errors.append("date_of_birth must be in YYYY-MM-DD format")
         
-        # Validate status
-        status = data.get('status', '').lower()
-        if status not in self.VALID_STATUSES:
-            errors.append(f"status must be one of: {', '.join(self.VALID_STATUSES)}")
+        # Parse on_hold field
+        on_hold_val = row.get('on_hold', '').strip().lower()
+        if on_hold_val in ['true', '1', 'yes']:
+            data['on_hold'] = True
         else:
-            data['status'] = status
+            data['on_hold'] = False
         
         # Validate centre if provided
         centre_name = row.get('centre', '').strip()
@@ -182,13 +185,6 @@ class ChildCSVImporter:
                 data['end_date'] = datetime.strptime(end_date, '%Y-%m-%d').date()
             except ValueError:
                 errors.append("end_date must be in YYYY-MM-DD format")
-        
-        # Validate discharge requirements
-        if status == 'discharged':
-            if not end_date:
-                errors.append("end_date is required for discharged status")
-            if not row.get('discharge_reason', '').strip():
-                errors.append("discharge_reason is required for discharged status")
         
         # Validate email fields if provided
         for email_field in ['guardian1_email', 'guardian2_email']:
@@ -297,12 +293,14 @@ class ChildCSVImporter:
                         skipped_count += 1
                         continue
                 
-                # Create child record
+                # Create child record - all imports default to active/awaiting_assignment
                 child = Child(
                     first_name=data['first_name'],
                     last_name=data['last_name'],
                     date_of_birth=data['date_of_birth'],
-                    status=data['status'],
+                    overall_status='active',
+                    caseload_status='awaiting_assignment',
+                    on_hold=data.get('on_hold', False),
                     created_by=self.user,
                     updated_by=self.user
                 )
@@ -351,24 +349,24 @@ class ChildCSVImporter:
         
         # Write headers
         headers = [
-            'first_name', 'last_name', 'date_of_birth', 'status',
+            'first_name', 'last_name', 'date_of_birth',
             'centre', 'guardian1_name', 'guardian1_phone', 'guardian1_email',
             'guardian2_name', 'guardian2_phone', 'guardian2_email',
             'address_line1', 'address_line2', 'city', 'province', 'postal_code',
-            'start_date', 'end_date', 'discharge_reason', 'notes'
+            'start_date', 'on_hold', 'notes'
         ]
         writer.writerow(headers)
         
         # Write example rows
         examples = [
-            ['John', 'Smith', '2015-03-15', 'active', 'Main Centre', 'Sarah Smith', '416-555-0123', 
+            ['John', 'Smith', '2015-03-15', 'Main Centre', 'Sarah Smith', '416-555-0123', 
              'sarah@example.com', '', '', '', '123 Main St', '', 'Toronto', 'ON', 'M1A 1A1', 
-             '2024-01-01', '', '', 'New admission'],
-            ['Jane', 'Doe', '2016-07-22', 'active', '', 'John Doe', '647-555-0456', 'john@example.com',
+             '2024-01-01', 'false', 'New admission'],
+            ['Jane', 'Doe', '2016-07-22', '', 'John Doe', '647-555-0456', 'john@example.com',
              'Mary Doe', '647-555-0789', 'mary@example.com', '456 Oak Ave', 'Unit 10', 'Mississauga', 
-             'ON', 'L5A 1B2', '', '', '', ''],
-            ['Bob', 'Johnson', '2014-11-30', 'non_caseload', '', '', '', '', '', '', '',
-             '', '', '', 'ON', '', '2023-06-01', '', '', 'Assessment only'],
+             'ON', 'L5A 1B2', '', 'false', ''],
+            ['Tim', 'Wilson', '2014-11-30', '', 'Lisa Wilson', '905-555-0111', '', '', '', '',
+             '', '', '', 'ON', '', '2023-06-01', 'true', 'On hold temporarily'],
         ]
         
         for example in examples:

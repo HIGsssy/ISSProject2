@@ -27,7 +27,7 @@ def dashboard(request):
         from django.utils import timezone
         
         # Total active children
-        active_children_count = Child.objects.filter(status='active').count()
+        active_children_count = Child.objects.filter(overall_status='active').count()
         
         # Visits in last 30 days
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
@@ -90,7 +90,8 @@ def my_caseload(request):
     base_filter = {
         'caseload_assignments__staff': user,
         'caseload_assignments__unassigned_at__isnull': True,
-        'status__in': ['active', 'on_hold']  # Exclude discharged and non-caseload
+        'overall_status': 'active',
+        'caseload_status': 'caseload'
     }
     
     # Add primary/secondary filter
@@ -133,10 +134,20 @@ def all_children(request):
     """View all children."""
     children = Child.objects.select_related('centre').prefetch_related('caseload_assignments__staff')
     
-    # Apply status filter if provided
-    status_filter = request.GET.get('status')
-    if status_filter:
-        children = children.filter(status=status_filter)
+    # Apply filters
+    overall_status_filter = request.GET.get('overall_status', 'active')
+    if overall_status_filter != 'all':
+        children = children.filter(overall_status=overall_status_filter)
+    
+    caseload_status_filter = request.GET.get('caseload_status', 'all')
+    if caseload_status_filter != 'all':
+        children = children.filter(caseload_status=caseload_status_filter)
+    
+    on_hold_filter = request.GET.get('on_hold', 'all')
+    if on_hold_filter == 'yes':
+        children = children.filter(on_hold=True)
+    elif on_hold_filter == 'no':
+        children = children.filter(on_hold=False)
     
     # Apply search if provided
     search = request.GET.get('search')
@@ -149,7 +160,9 @@ def all_children(request):
     
     context = {
         'children': children,
-        'status_filter': status_filter,
+        'overall_status_filter': overall_status_filter,
+        'caseload_status_filter': caseload_status_filter,
+        'on_hold_filter': on_hold_filter,
         'search': search,
         'view_type': 'all',
     }
@@ -160,7 +173,10 @@ def all_children(request):
 @login_required
 def non_caseload_children(request):
     """View all non-caseload children."""
-    children = Child.objects.filter(status='non_caseload').select_related('centre')
+    children = Child.objects.filter(
+        overall_status='active',
+        caseload_status='non_caseload'
+    ).select_related('centre')
     
     context = {
         'children': children,
@@ -224,16 +240,17 @@ def add_visit(request):
     is_supervisor_or_admin = user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])
     
     if is_supervisor_or_admin:
-        # Supervisors and admins can see all children
+        # Supervisors and admins can see all active children
         children = Child.objects.filter(
-            Q(status__in=['active', 'on_hold', 'non_caseload'])
+            overall_status='active'
         ).order_by('last_name', 'first_name')
     else:
-        # Staff can only see children in their caseload (primary or secondary)
+        # Staff can only see children in their caseload
         children = Child.objects.filter(
             caseload_assignments__staff=user,
             caseload_assignments__unassigned_at__isnull=True,
-            status__in=['active', 'on_hold', 'non_caseload']
+            overall_status='active',
+            caseload_status='caseload'
         ).distinct().order_by('last_name', 'first_name')
     
     centres = Centre.objects.filter(status='active').order_by('name')
@@ -309,7 +326,7 @@ def edit_visit(request, pk):
     
     # Get form data
     children = Child.objects.filter(
-        Q(status__in=['active', 'on_hold', 'non_caseload'])
+        overall_status='active'
     ).order_by('last_name', 'first_name')
     
     centres = Centre.objects.filter(status='active').order_by('name')
@@ -395,10 +412,15 @@ def edit_child(request, pk):
             else:
                 child.centre = None
             
-            # Status (excluding discharged - use discharge workflow for that)
-            new_status = request.POST.get('status')
-            if new_status and new_status != 'discharged':
-                child.status = new_status
+            # Caseload status (only for supervisors/admins)
+            is_supervisor_or_admin = request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])
+            if is_supervisor_or_admin:
+                new_caseload_status = request.POST.get('caseload_status')
+                if new_caseload_status and child.overall_status == 'active':
+                    child.caseload_status = new_caseload_status
+            
+            # On hold status
+            child.on_hold = request.POST.get('on_hold') == 'on'
             
             # Notes
             child.notes = request.POST.get('notes', '').strip()
@@ -416,17 +438,14 @@ def edit_child(request, pk):
     # Get centres for dropdown
     centres = Centre.objects.filter(status='active').order_by('name')
     
-    # Define available statuses (excluding discharged)
-    available_statuses = [
-        ('active', 'Active'),
-        ('on_hold', 'On Hold'),
-        ('non_caseload', 'Non-Caseload'),
-    ]
+    # Check if user is supervisor/admin
+    is_supervisor_or_admin = request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])
     
     context = {
         'child': child,
         'centres': centres,
-        'available_statuses': available_statuses,
+        'is_supervisor_or_admin': is_supervisor_or_admin,
+        'caseload_status_choices': Child.CASELOAD_STATUS_CHOICES,
     }
     
     return render(request, 'core/edit_child.html', context)
@@ -474,12 +493,12 @@ def discharge_child(request, pk):
     """Discharge a child from services."""
     child = get_object_or_404(Child, pk=pk)
     
-    # Check permissions - only supervisors and admins can discharge
-    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])):
+    # Check permissions - staff, supervisors, and admins can discharge
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['staff', 'supervisor', 'admin'])):
         raise PermissionDenied("You don't have permission to discharge children.")
     
     # Prevent discharging already discharged children
-    if child.status == 'discharged':
+    if child.overall_status == 'discharged':
         messages.warning(request, f'{child.full_name} is already discharged.')
         return redirect('child_detail', pk=child.pk)
     
@@ -494,7 +513,9 @@ def discharge_child(request, pk):
         else:
             try:
                 # Update child status and info
-                child.status = 'discharged'
+                child.overall_status = 'discharged'
+                child.caseload_status = 'non_caseload'
+                child.on_hold = False
                 child.discharge_reason = discharge_reason
                 child.end_date = discharge_date
                 child.updated_by = request.user

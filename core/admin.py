@@ -41,7 +41,7 @@ class CentreAdmin(admin.ModelAdmin):
     
     def active_children_count(self, obj):
         """Count of active children at this centre."""
-        count = obj.children.filter(status='active').count()
+        count = obj.children.filter(overall_status='active').count()
         return count
     active_children_count.short_description = 'Active Children'
     
@@ -76,13 +76,17 @@ class ChildAdmin(admin.ModelAdmin):
         'first_name',
         'age_display',
         'centre',
-        'status_badge',
+        'overall_status_badge',
+        'caseload_status_badge',
+        'on_hold_indicator',
         'primary_staff_display',
         'created_at'
     ]
     
     list_filter = [
-        'status',
+        'overall_status',
+        'caseload_status',
+        'on_hold',
         'centre',
         'created_at',
     ]
@@ -99,7 +103,10 @@ class ChildAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Child Information', {
-            'fields': ('first_name', 'last_name', 'date_of_birth', 'status')
+            'fields': ('first_name', 'last_name', 'date_of_birth')
+        }),
+        ('Status', {
+            'fields': ('overall_status', 'caseload_status', 'on_hold')
         }),
         ('Address', {
             'fields': ('address_line1', 'address_line2', 'city', 'province', 'postal_code'),
@@ -112,7 +119,7 @@ class ChildAdmin(admin.ModelAdmin):
             )
         }),
         ('Service Information', {
-            'fields': ('centre', 'start_date', 'end_date', 'notes')
+            'fields': ('centre', 'start_date', 'end_date', 'discharge_reason', 'notes')
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
@@ -128,21 +135,43 @@ class ChildAdmin(admin.ModelAdmin):
         return f"{obj.age} years"
     age_display.short_description = 'Age'
     
-    def status_badge(self, obj):
-        """Display status with color coding."""
+    def overall_status_badge(self, obj):
+        """Display overall status with color coding."""
         colors = {
             'active': '#28a745',
-            'on_hold': '#ffc107',
-            'discharged': '#6c757d',
-            'non_caseload': '#17a2b8'
+            'discharged': '#6c757d'
         }
-        color = colors.get(obj.status, '#6c757d')
+        color = colors.get(obj.overall_status, '#6c757d')
         return format_html(
             '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
             color,
-            obj.get_status_display()
+            obj.get_overall_status_display()
         )
-    status_badge.short_description = 'Status'
+    overall_status_badge.short_description = 'Overall Status'
+    
+    def caseload_status_badge(self, obj):
+        """Display caseload status with color coding."""
+        colors = {
+            'caseload': '#007bff',
+            'non_caseload': '#17a2b8',
+            'awaiting_assignment': '#ffc107'
+        }
+        color = colors.get(obj.caseload_status, '#6c757d')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_caseload_status_display()
+        )
+    caseload_status_badge.short_description = 'Caseload Status'
+    
+    def on_hold_indicator(self, obj):
+        """Display on-hold indicator."""
+        if obj.on_hold:
+            return format_html(
+                '<span style="background-color: #ffc107; color: black; padding: 3px 10px; border-radius: 3px; font-weight: bold;">ON HOLD</span>'
+            )
+        return '-'
+    on_hold_indicator.short_description = 'On Hold'
     
     def primary_staff_display(self, obj):
         """Display primary staff member."""

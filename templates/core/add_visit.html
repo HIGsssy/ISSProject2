@@ -22,7 +22,7 @@
                 <option value="">Select a child...</option>
                 {% for child in children %}
                 <option value="{{ child.pk }}" {% if selected_child and selected_child.pk == child.pk %}selected{% endif %}>
-                    {{ child.full_name }} ({{ child.get_status_display }})
+                    {{ child.full_name }} ({{ child.get_caseload_status_display }})
                 </option>
                 {% endfor %}
             </select>
