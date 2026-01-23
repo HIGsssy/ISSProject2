@@ -110,6 +110,17 @@
 - Staff members can now discharge children (previously supervisors/admins only)
 - Discharge sets: overall_status='discharged', caseload_status='non_caseload', on_hold=False
 
+### 5. CSS Badge Styling Fix (Completed January 23, 2026)
+- Fixed issue where status badges showed as black text on white background
+- Root cause: Tailwind CSS overriding custom badge colors
+- Solution: Added `!important` flags to all badge CSS classes
+- All status badges now display with correct colors
+
+### 6. Visit Centre Pre-selection (Completed January 23, 2026)
+- When logging a visit from a child's page, the centre field now defaults to the child's assigned centre
+- Improves user experience and reduces data entry errors
+- Changes in `core/views.py` (add_visit) and `templates/core/add_visit.html`
+
 ---
 
 ## Database Schema
@@ -754,6 +765,27 @@ else:
 
 **Fix:** Checked actual index name in 0001_initial.py migration and updated 0006 to use correct name: `core_child_status_f8bbac_idx`
 
+### 5. CSS Badge Styling Not Working (Fixed Jan 23, 2026)
+**Issue:** Status badges displayed as black text on white background instead of colored badges
+
+**Root Cause:** Tailwind CSS (loaded via CDN) was overriding custom CSS colors with higher specificity
+
+**Fix:** Added `!important` flags to all badge color styles in `static/css/custom.css`:
+```css
+.overall-status-active {
+    background-color: #10b981 !important;
+    color: white !important;
+}
+/* ... similar for all badge classes */
+```
+
+**Additional Steps:**
+- Manually copied updated CSS to container's staticfiles directory
+- Restarted nginx to serve updated CSS
+- Hard refresh browser (Ctrl+F5) to clear cached CSS
+
+**Location:** `static/css/custom.css`
+
 ---
 
 ## Testing Checklist
@@ -1091,16 +1123,29 @@ This ISS Portal project is a fully functional child welfare case management syst
 - ✅ RESTful API with Django REST Framework
 - ✅ Docker containerization for easy deployment
 - ✅ 8 fully updated templates reflecting new status system
+- ✅ CSS badge styling with !important flags for proper color display
+- ✅ Visit centre pre-selection based on child's assigned centre
 
 **Current Status:** Production-ready after recent status refactoring (Jan 23, 2026)
 
-**Recent Work:** Complete status system restructure from single field to three fields, updated all backend code (models, views, serializers, viewsets, admin), all templates, CSS, and fixed related bugs.
+**Recent Work (Jan 23, 2026):** 
+1. Complete status system restructure from single field to three fields
+2. Updated all backend code (models, views, serializers, viewsets, admin)
+3. Updated all 8 templates to display three-field status system
+4. Fixed CSS badge styling issues with !important flags
+5. Fixed visit dropdown empty parentheses bug
+6. Added centre pre-selection when logging visits from child pages
+
+**Latest Enhancements:**
+- CSS badge styling now properly overrides Tailwind CSS defaults
+- Visit form automatically selects child's assigned centre when accessed via "Log Visit" button
+- All status badges display with correct colors (green, gray, blue, purple, orange, yellow)
 
 **Next Session:** Can proceed with enhancements, reporting features, or additional functionality as needed.
 
 ---
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Last Verified:** January 23, 2026  
 **Container Status:** Running (web, db, nginx)  
 **Migration Status:** 0006_restructure_child_status applied successfully
