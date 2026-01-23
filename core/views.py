@@ -7,8 +7,10 @@ from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from .models import Child, Visit, Centre, VisitType, CaseloadAssignment, CommunityPartner, Referral
 from accounts.models import User
+from .utils.csv_import import ChildCSVImporter, CSVImportError
 
 
 @login_required
@@ -754,3 +756,177 @@ def referrals_management(request):
         'staff_members': staff_members,
     }
     return render(request, 'core/referrals_management.html', context)
+
+
+@login_required
+def import_children(request):
+    """Import children from CSV file."""
+    # Check permissions - only supervisors and admins
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])):
+        raise PermissionDenied("You don't have permission to import children.")
+    
+    if request.method == 'POST':
+        # Handle file upload and import
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file uploaded.')
+            return redirect('import_children')
+        
+        csv_file = request.FILES['csv_file']
+        
+        # Validate file type
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Invalid file type. Please upload a CSV file.')
+            return redirect('import_children')
+        
+        # Check file size (10MB limit)
+        if csv_file.size > 10 * 1024 * 1024:
+            messages.error(request, 'File too large. Maximum size is 10MB.')
+            return redirect('import_children')
+        
+        try:
+            importer = ChildCSVImporter(csv_file, request.user)
+            result = importer.parse()
+            
+            # Store results in session for preview
+            request.session['import_preview'] = {
+                'valid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': {k: str(v) if not isinstance(v, (str, int, type(None))) else v 
+                                for k, v in row['data'].items() if k != 'centre'},
+                        'centre_name': row['data'].get('centre').name if row['data'].get('centre') else ''
+                    }
+                    for row in result['valid']
+                ],
+                'invalid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': row['raw_data'],
+                        'errors': row['errors']
+                    }
+                    for row in result['invalid']
+                ],
+                'total': result['total']
+            }
+            
+            # Check for duplicates
+            duplicates = importer.check_duplicates()
+            request.session['import_duplicates'] = [
+                {
+                    'row_num': dup['row_num'],
+                    'name': dup['name'],
+                    'dob': str(dup['dob']),
+                    'existing_id': dup['existing_id']
+                }
+                for dup in duplicates
+            ]
+            
+            return redirect('import_children_preview')
+            
+        except CSVImportError as e:
+            messages.error(request, f'CSV Import Error: {str(e)}')
+            return redirect('import_children')
+        except Exception as e:
+            messages.error(request, f'Unexpected error: {str(e)}')
+            return redirect('import_children')
+    
+    # GET request - show upload form
+    return render(request, 'core/import_children.html')
+
+
+@login_required
+def import_children_preview(request):
+    """Preview CSV import before confirming."""
+    # Check permissions - only supervisors and admins
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])):
+        raise PermissionDenied("You don't have permission to import children.")
+    
+    # Get preview data from session
+    preview_data = request.session.get('import_preview')
+    duplicates = request.session.get('import_duplicates', [])
+    
+    if not preview_data:
+        messages.error(request, 'No import preview available. Please upload a CSV file first.')
+        return redirect('import_children')
+    
+    if request.method == 'POST':
+        # Handle confirmed import
+        skip_duplicates = request.POST.get('skip_duplicates') == 'on'
+        
+        # Need to re-parse the file stored in session
+        # For simplicity, we'll reconstruct CSV from session data
+        try:
+            import io
+            import csv
+            
+            # Reconstruct CSV content from valid rows
+            output = io.StringIO()
+            valid_rows = preview_data['valid']
+            
+            if valid_rows:
+                # Write header
+                headers = list(valid_rows[0]['data'].keys())
+                if valid_rows[0].get('centre_name'):
+                    headers.append('centre')
+                
+                writer = csv.DictWriter(output, fieldnames=headers)
+                writer.writeheader()
+                
+                # Write data rows
+                for row in valid_rows:
+                    row_data = row['data'].copy()
+                    if row.get('centre_name'):
+                        row_data['centre'] = row['centre_name']
+                    writer.writerow(row_data)
+                
+                # Create file-like object
+                output.seek(0)
+                from django.core.files.uploadedfile import SimpleUploadedFile
+                csv_content = output.getvalue().encode('utf-8')
+                csv_file = SimpleUploadedFile("import.csv", csv_content, content_type="text/csv")
+                
+                # Import records
+                importer = ChildCSVImporter(csv_file, request.user)
+                importer.parse()  # Re-parse to get proper objects
+                result = importer.import_records(skip_duplicates=skip_duplicates)
+                
+                # Clear session data
+                del request.session['import_preview']
+                if 'import_duplicates' in request.session:
+                    del request.session['import_duplicates']
+                
+                # Show results
+                if result['created'] > 0:
+                    messages.success(request, f"Successfully imported {result['created']} child record(s).")
+                if result['skipped'] > 0:
+                    messages.info(request, f"Skipped {result['skipped']} duplicate record(s).")
+                if result['errors']:
+                    messages.warning(request, f"{len(result['errors'])} record(s) failed to import.")
+                
+                return redirect('all_children')
+                
+        except Exception as e:
+            messages.error(request, f'Import failed: {str(e)}')
+            return redirect('import_children')
+    
+    # GET request - show preview
+    context = {
+        'preview': preview_data,
+        'duplicates': duplicates,
+        'has_duplicates': len(duplicates) > 0
+    }
+    
+    return render(request, 'core/import_children_preview.html', context)
+
+
+@login_required
+def download_children_template(request):
+    """Download CSV template for importing children."""
+    # Generate template
+    template_content = ChildCSVImporter.generate_template()
+    
+    # Create response
+    response = HttpResponse(template_content, content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="children_import_template.csv"'
+    
+    return response
