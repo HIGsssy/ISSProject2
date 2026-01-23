@@ -219,9 +219,22 @@ def add_visit(request):
         return redirect('dashboard')
     
     # Get form data
-    children = Child.objects.filter(
-        Q(status__in=['active', 'on_hold', 'non_caseload'])
-    ).order_by('last_name', 'first_name')
+    # Filter children based on user role
+    user = request.user
+    is_supervisor_or_admin = user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])
+    
+    if is_supervisor_or_admin:
+        # Supervisors and admins can see all children
+        children = Child.objects.filter(
+            Q(status__in=['active', 'on_hold', 'non_caseload'])
+        ).order_by('last_name', 'first_name')
+    else:
+        # Staff can only see children in their caseload (primary or secondary)
+        children = Child.objects.filter(
+            caseload_assignments__staff=user,
+            caseload_assignments__unassigned_at__isnull=True,
+            status__in=['active', 'on_hold', 'non_caseload']
+        ).distinct().order_by('last_name', 'first_name')
     
     centres = Centre.objects.filter(status='active').order_by('name')
     visit_types = VisitType.objects.filter(is_active=True).order_by('name')

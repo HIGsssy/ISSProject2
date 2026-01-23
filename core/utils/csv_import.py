@@ -132,6 +132,7 @@ class ChildCSVImporter:
             return {
                 'valid': False,
                 'data': row,
+                'raw_data': row,
                 'errors': errors,
                 'row_num': row_num
             }
