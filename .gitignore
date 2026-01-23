@@ -45,3 +45,6 @@ nginx/ssl/*.pem
 # Backup files
 *.bak
 *.backup
+
+# Project status (contains sensitive encryption keys)
+PROJECT_STATUS.md
