@@ -259,14 +259,18 @@ def add_visit(request):
     # Pre-select child if provided in URL
     child_id = request.GET.get('child_id')
     selected_child = None
+    selected_centre = None
     if child_id:
         selected_child = Child.objects.filter(pk=child_id).first()
+        if selected_child and selected_child.centre:
+            selected_centre = selected_child.centre
     
     context = {
         'children': children,
         'centres': centres,
         'visit_types': visit_types,
         'selected_child': selected_child,
+        'selected_centre': selected_centre,
     }
     
     return render(request, 'core/add_visit.html', context)
