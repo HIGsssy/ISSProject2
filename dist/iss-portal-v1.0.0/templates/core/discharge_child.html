@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}Discharge {{ child.full_name }} - ISS Portal{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Discharge Child</h1>
+            <p class="mt-2 text-gray-600">{{ child.full_name }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Warning Card -->
+<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-yellow-700">
+                <strong>Warning:</strong> Discharging this child will:
+            </p>
+            <ul class="list-disc list-inside text-sm text-yellow-700 mt-2">
+                <li>Change the child's status to "Discharged"</li>
+                <li>Remove all active caseload assignments</li>
+                <li>Set the end date for services</li>
+                <li>This action cannot be easily undone</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Discharge Form -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <form method="POST" class="space-y-6 p-6">
+        {% csrf_token %}
+        
+        <!-- Current Child Information -->
+        <div class="bg-gray-50 p-4 rounded-md mb-6">
+            <h3 class="text-sm font-medium text-gray-900 mb-2">Child Information</h3>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                <div>
+                    <dt class="text-xs text-gray-500">Name:</dt>
+                    <dd class="text-sm text-gray-900 font-medium">{{ child.full_name }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-gray-500">Age:</dt>
+                    <dd class="text-sm text-gray-900">{{ child.age }} years</dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-gray-500">Current Status:</dt>
+                    <dd class="text-sm">
+                        <span class="status-badge status-{{ child.status }}">
+                            {{ child.get_status_display }}
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-gray-500">Start Date:</dt>
+                    <dd class="text-sm text-gray-900">{{ child.start_date }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Discharge Date -->
+        <div>
+            <label for="discharge_date" class="block text-sm font-medium text-gray-700">
+                Discharge Date <span class="text-red-600">*</span>
+            </label>
+            <input 
+                type="date" 
+                id="discharge_date" 
+                name="discharge_date" 
+                required
+                max="{{ today|date:'Y-m-d' }}"
+                value="{{ today|date:'Y-m-d' }}"
+                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+            <p class="mt-1 text-sm text-gray-500">The date services ended for this child.</p>
+        </div>
+
+        <!-- Discharge Reason -->
+        <div>
+            <label for="discharge_reason" class="block text-sm font-medium text-gray-700">
+                Discharge Reason <span class="text-red-600">*</span>
+            </label>
+            <textarea 
+                id="discharge_reason" 
+                name="discharge_reason" 
+                rows="6" 
+                required
+                placeholder="Please provide a detailed reason for discharge. For example:&#10;- Child aged out of program&#10;- Family moved out of service area&#10;- Services no longer needed&#10;- Parent/guardian request&#10;- Transitioned to another program"
+                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            ></textarea>
+            <p class="mt-1 text-sm text-gray-500">
+                This information will be permanently stored in the child's record.
+            </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+            <a 
+                href="{% url 'child_detail' child.pk %}" 
+                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+                Cancel
+            </a>
+            <button 
+                type="submit" 
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Discharge Child
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Current Caseload Assignments Info -->
+{% if active_assignments %}
+<div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-blue-700">
+                <strong>Current Active Assignments:</strong>
+            </p>
+            <ul class="list-disc list-inside text-sm text-blue-700 mt-1">
+                {% for assignment in active_assignments %}
+                <li>{{ assignment.staff.get_full_name }} ({% if assignment.is_primary %}Primary{% else %}Secondary{% endif %})</li>
+                {% endfor %}
+            </ul>
+            <p class="text-sm text-blue-700 mt-2">
+                These assignments will be automatically unassigned upon discharge.
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
