@@ -8,8 +8,44 @@
     font-size: 0.875rem;
     font-weight: 600;
     text-transform: uppercase;
+    margin-right: 0.5rem;
 }
 
+/* Overall Status Badges */
+.overall-status-active {
+    background-color: #10b981 !important;
+    color: white !important;
+}
+
+.overall-status-discharged {
+    background-color: #6b7280 !important;
+    color: white !important;
+}
+
+/* Caseload Status Badges */
+.caseload-status-caseload {
+    background-color: #3b82f6 !important;
+    color: white !important;
+}
+
+.caseload-status-non_caseload {
+    background-color: #8b5cf6 !important;
+    color: white !important;
+}
+
+.caseload-status-awaiting_assignment {
+    background-color: #f59e0b !important;
+    color: white !important;
+}
+
+/* On Hold Badge */
+.on-hold-badge {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+    border: 2px solid #fbbf24 !important;
+}
+
+/* Legacy status classes for backward compatibility */
 .status-active {
     background-color: #10b981;
     color: white;

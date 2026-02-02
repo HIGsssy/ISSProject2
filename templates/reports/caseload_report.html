@@ -22,16 +22,16 @@
             <p class="mt-1 text-xs text-gray-500">Active secondary staff assignments</p>
         </div>
         <div class="bg-white shadow rounded-lg p-6">
-            <dt class="text-sm font-medium text-gray-500 truncate">Non-Caseload with Visits</dt>
-            <dd class="mt-1 text-3xl font-semibold text-green-600">{{ non_caseload_with_visits }}</dd>
-            <p class="mt-1 text-xs text-gray-500">Non-caseload children who received visits</p>
+            <dt class="text-sm font-medium text-gray-500 truncate">Active with Visits (No Assignment)</dt>
+            <dd class="mt-1 text-3xl font-semibold text-green-600">{{ children_with_visits_no_assignment }}</dd>
+            <p class="mt-1 text-xs text-gray-500">Active children awaiting assignment who have visits</p>
         </div>
     </div>
 
-    <!-- Children by Status -->
-    <div class="bg-white shadow rounded-lg overflow-hidden">
+    <!-- Children by Overall Status -->
+    <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">Children by Status</h3>
+            <h3 class="text-lg font-medium text-gray-900">Children by Overall Status</h3>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -39,33 +39,68 @@
                     <tr>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    {% for status_data in children_by_status %}
+                    {% for status_data in children_by_overall_status %}
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {% if status_data.status == 'active' %}
+                            {% if status_data.overall_status == 'active' %}
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
-                            {% elif status_data.status == 'on_hold' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">On Hold</span>
-                            {% elif status_data.status == 'discharged' %}
+                            {% elif status_data.overall_status == 'discharged' %}
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Discharged</span>
-                            {% elif status_data.status == 'non_caseload' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Non-Caseload</span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">{{ status_data.overall_status|title }}</span>
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {{ status_data.count }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% widthratio status_data.count children_by_status|length 100 %}%
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2" class="px-6 py-4 text-center text-sm text-gray-500">No children data available</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Children by Caseload Status -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Children by Caseload Status</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Caseload Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for status_data in children_by_caseload_status %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {% if status_data.caseload_status == 'caseload' %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Caseload</span>
+                            {% elif status_data.caseload_status == 'non_caseload' %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Non-Caseload</span>
+                            {% elif status_data.caseload_status == 'awaiting_assignment' %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Awaiting Assignment</span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ status_data.caseload_status|title }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ status_data.count }}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500">No children data available</td>
+                        <td colspan="2" class="px-6 py-4 text-center text-sm text-gray-500">No children data available</td>
                     </tr>
                     {% endfor %}
                 </tbody>

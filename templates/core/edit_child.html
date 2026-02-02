@@ -64,20 +64,52 @@
                 </div>
                 
                 <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700">
-                        Status <span class="text-red-600">*</span>
+                    <label for="centre" class="block text-sm font-medium text-gray-700">
+                        Centre
                     </label>
                     <select 
-                        id="status" 
-                        name="status" 
+                        id="centre" 
+                        name="centre"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                        <option value="">No Centre</option>
+                        {% for centre in centres %}
+                        <option value="{{ centre.id }}" {% if child.centre_id == centre.id %}selected{% endif %}>{{ centre.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                {% if is_supervisor_or_admin %}
+                <div>
+                    <label for="caseload_status" class="block text-sm font-medium text-gray-700">
+                        Caseload Status <span class="text-red-600">*</span>
+                    </label>
+                    <select 
+                        id="caseload_status" 
+                        name="caseload_status" 
                         required
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     >
-                        {% for value, label in available_statuses %}
-                        <option value="{{ value }}" {% if child.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% for value, label in caseload_status_choices %}
+                        <option value="{{ value }}" {% if child.caseload_status == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
-                    <p class="mt-1 text-xs text-gray-500">To discharge a child, use the Discharge button on the child detail page.</p>
+                    <p class="mt-1 text-xs text-gray-500">Automatically updates when staff assignments change.</p>
+                </div>
+                {% endif %}
+                
+                <div>
+                    <label for="on_hold" class="flex items-center text-sm font-medium text-gray-700">
+                        <input 
+                            type="checkbox" 
+                            id="on_hold" 
+                            name="on_hold"
+                            {% if child.on_hold %}checked{% endif %}
+                            class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        >
+                        On Hold
+                    </label>
+                    <p class="mt-1 text-xs text-gray-500 ml-6">Temporarily pause this child's record while keeping them active.</p>
                 </div>
             </div>
         </div>

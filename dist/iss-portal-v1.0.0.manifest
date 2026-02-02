@@ -1,0 +1,31 @@
+ISS Portal - Distribution Package
+==================================
+
+Package: iss-portal-v1.0.0.tar.gz
+Version: 1.0.0
+Build Date: 2026-01-21 14:40:56
+Size: 0.08 MB
+SHA256: 18d8fd32de7ce85625878d95ce693b9ece959723403085ab5f5bea055f8f9807
+
+Contents:
+- ISS Portal application
+- Docker configuration  
+- Deployment scripts (deploy.sh, upgrade.sh, backup.sh)
+- Management scripts (start.sh, stop.sh, status.sh)
+- Systemd service file
+- Complete documentation
+
+Verification:
+  # On Linux:
+  sha256sum -c iss-portal-v1.0.0.tar.gz.sha256
+  
+  # On Windows (PowerShell):
+  $hash = (Get-FileHash iss-portal-v1.0.0.tar.gz -Algorithm SHA256).Hash.ToLower()
+  $expected = (Get-Content iss-portal-v1.0.0.tar.gz.sha256).Split(' ')[0]
+  if ($hash -eq $expected) { Write-Host " Checksum verified" } else { Write-Host " Checksum mismatch" }
+
+Installation:
+  tar -xzf iss-portal-v1.0.0.tar.gz
+  cd iss-portal-v1.0.0
+  See DEPLOYMENT.md for detailed instructions
+

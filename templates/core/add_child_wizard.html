@@ -1,0 +1,805 @@
+{% extends "base.html" %}
+
+{% block title %}Add Child - Multi-Step Intake{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        background-color: #e5e7eb;
+        color: #9ca3af;
+    }
+    
+    .step-indicator.active .step-circle {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .step-indicator.completed .step-circle {
+        background-color: #10b981;
+        color: white;
+    }
+    
+    .step-indicator.active div:first-child {
+        color: #2563eb;
+    }
+    
+    .step-indicator.completed div:first-child {
+        color: #10b981;
+    }
+    
+    .form-step {
+        display: none;
+    }
+    
+    .form-step.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Child Intake Form</h1>
+            <p class="mt-2 text-sm text-gray-600">Complete all sections to add a new child to the system</p>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center step-indicator" data-step="1">
+                    <div class="flex items-center text-blue-600">
+                        <div class="step-circle active">1</div>
+                        <span class="ml-2 text-sm font-medium hidden sm:inline">Child Info</span>
+                    </div>
+                </div>
+                <div class="flex-1 h-1 mx-2 bg-gray-200">
+                    <div class="h-full bg-blue-600 transition-all duration-300" style="width: 0%" id="progress-bar-1"></div>
+                </div>
+                
+                <div class="flex items-center step-indicator" data-step="2">
+                    <div class="flex items-center text-gray-400">
+                        <div class="step-circle">2</div>
+                        <span class="ml-2 text-sm font-medium hidden sm:inline">Guardians</span>
+                    </div>
+                </div>
+                <div class="flex-1 h-1 mx-2 bg-gray-200">
+                    <div class="h-full bg-blue-600 transition-all duration-300" style="width: 0%" id="progress-bar-2"></div>
+                </div>
+                
+                <div class="flex items-center step-indicator" data-step="3">
+                    <div class="flex items-center text-gray-400">
+                        <div class="step-circle">3</div>
+                        <span class="ml-2 text-sm font-medium hidden sm:inline">Referral</span>
+                    </div>
+                </div>
+                <div class="flex-1 h-1 mx-2 bg-gray-200">
+                    <div class="h-full bg-blue-600 transition-all duration-300" style="width: 0%" id="progress-bar-3"></div>
+                </div>
+                
+                <div class="flex items-center step-indicator" data-step="4">
+                    <div class="flex items-center text-gray-400">
+                        <div class="step-circle">4</div>
+                        <span class="ml-2 text-sm font-medium hidden sm:inline">Programs</span>
+                    </div>
+                </div>
+                <div class="flex-1 h-1 mx-2 bg-gray-200">
+                    <div class="h-full bg-blue-600 transition-all duration-300" style="width: 0%" id="progress-bar-4"></div>
+                </div>
+                
+                <div class="flex items-center step-indicator" data-step="5">
+                    <div class="flex items-center text-gray-400">
+                        <div class="step-circle">5</div>
+                        <span class="ml-2 text-sm font-medium hidden sm:inline">Review</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form id="intakeForm" class="bg-white shadow rounded-lg p-8">
+            {% csrf_token %}
+            
+            <!-- Step 1: Child Information -->
+            <div class="form-step active" data-step="1">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Child Information</h2>
+                
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                First Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="first_name" required
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Last Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="last_name" required
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Date of Birth <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" name="date_of_birth" required
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Address Line 1
+                        </label>
+                        <input type="text" name="address_line1"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Address Line 2
+                        </label>
+                        <input type="text" name="address_line2"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                City/Town
+                            </label>
+                            <input type="text" name="city"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Postal Code
+                            </label>
+                            <input type="text" name="postal_code" placeholder="A1A 1A1"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Alternate Location (if different than mailing address)
+                        </label>
+                        <textarea name="alternate_location" rows="2"
+                                  class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Guardian Information -->
+            <div class="form-step" data-step="2">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Guardian Information</h2>
+                
+                <div class="space-y-8">
+                    <!-- Guardian 1 -->
+                    <div class="border-b border-gray-200 pb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Guardian 1</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Full Name
+                                </label>
+                                <input type="text" name="guardian1_name"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Home Phone
+                                    </label>
+                                    <input type="tel" name="guardian1_home_phone"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Work Phone
+                                    </label>
+                                    <input type="tel" name="guardian1_work_phone"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Cell Phone
+                                    </label>
+                                    <input type="tel" name="guardian1_cell_phone"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+                                <input type="email" name="guardian1_email"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Guardian 2 -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Guardian 2 (Optional)</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Full Name
+                                </label>
+                                <input type="text" name="guardian2_name"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Home Phone
+                                    </label>
+                                    <input type="tel" name="guardian2_home_phone"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Work Phone
+                                    </label>
+                                    <input type="tel" name="guardian2_work_phone"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Cell Phone
+                                    </label>
+                                    <input type="tel" name="guardian2_cell_phone"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+                                <input type="email" name="guardian2_email"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Referral Information -->
+            <div class="form-step" data-step="3">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Referral Information</h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            Referred By <span class="text-red-500">*</span>
+                        </label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="referral_source_type" value="parent_guardian" required
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <span class="ml-2 text-sm text-gray-700">Parent/Guardian</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="referral_source_type" value="other_agency"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <span class="ml-2 text-sm text-gray-700">Other Agency</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Contact Name
+                            </label>
+                            <input type="text" name="referral_source_name"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Contact Phone
+                            </label>
+                            <input type="tel" name="referral_source_phone"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <!-- Agency fields (shown when other_agency selected) -->
+                    <div id="agency-fields" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Agency Name
+                            </label>
+                            <input type="text" name="referral_agency_name"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Agency Address
+                            </label>
+                            <textarea name="referral_agency_address" rows="2"
+                                      class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            Reason for Referral (select all that apply)
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="referral_reason_cognitive"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Cognitive</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="referral_reason_language"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Language</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="referral_reason_gross_motor"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Gross Motor</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="referral_reason_fine_motor"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Fine Motor</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="referral_reason_social_emotional"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Social/Emotional</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="referral_reason_self_help"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Self-help</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="referral_reason_other"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Other</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Details about referral reasons
+                        </label>
+                        <textarea name="referral_reason_details" rows="4"
+                                  placeholder="Please provide details about the reasons for referral..."
+                                  class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Program Attendance -->
+            <div class="form-step" data-step="4">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Program Attendance</h2>
+                
+                <div class="space-y-8">
+                    <!-- Childcare -->
+                    <div class="border-b border-gray-200 pb-8">
+                        <div class="flex items-center mb-4">
+                            <input type="checkbox" id="attends_childcare" name="attends_childcare"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="attends_childcare" class="ml-2 text-sm font-medium text-gray-700">
+                                Is the child attending a licensed child care program?
+                            </label>
+                        </div>
+                        
+                        <div id="childcare-fields" class="hidden ml-6 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Which centre?
+                                </label>
+                                <select name="childcare_centre"
+                                        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select a centre...</option>
+                                    {% for centre in centres %}
+                                    <option value="{{ centre.pk }}">{{ centre.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    How often?
+                                </label>
+                                <input type="text" name="childcare_frequency" placeholder="e.g., Full-time, 3 days per week"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- EarlyON -->
+                    <div class="border-b border-gray-200 pb-8">
+                        <div class="flex items-center mb-4">
+                            <input type="checkbox" id="attends_earlyon" name="attends_earlyon"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="attends_earlyon" class="ml-2 text-sm font-medium text-gray-700">
+                                Is the child attending an EarlyON Child and Family Center?
+                            </label>
+                        </div>
+                        
+                        <div id="earlyon-fields" class="hidden ml-6 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Which centre?
+                                </label>
+                                <select name="earlyon_centre"
+                                        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select a centre...</option>
+                                    {% for centre in earlyon_centres %}
+                                    <option value="{{ centre.pk }}">{{ centre.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    How often?
+                                </label>
+                                <input type="text" name="earlyon_frequency" placeholder="e.g., Twice per week"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Agency Involvement -->
+                    <div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="agency_continuing_involvement" name="agency_continuing_involvement"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="agency_continuing_involvement" class="ml-2 text-sm font-medium text-gray-700">
+                                Is the referring agency continuing involvement with the family?
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Review & Submit -->
+            <div class="form-step" data-step="5">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Review & Submit</h2>
+                
+                <div class="space-y-6">
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                        <p class="text-sm text-blue-700">
+                            Please review all information before submitting. You can go back to any step to make changes.
+                        </p>
+                    </div>
+                    
+                    <div id="review-content" class="space-y-6">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                    
+                    <div class="border-t border-gray-200 pt-6">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="referral_consent_on_file" name="referral_consent_on_file" required
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="referral_consent_on_file" class="ml-2 text-sm font-medium text-gray-700">
+                                I confirm that the referral consent form is on file <span class="text-red-500">*</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="flex justify-between mt-8 pt-6 border-t border-gray-200">
+                <button type="button" id="prevBtn" class="hidden px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Previous
+                </button>
+                <div></div>
+                <div class="flex gap-3">
+                    <a href="{% url 'all_children' %}" class="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="button" id="nextBtn" class="px-6 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Next
+                    </button>
+                    <button type="submit" id="submitBtn" class="hidden px-6 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        Submit
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStep = 1;
+const totalSteps = 5;
+
+// Toggle agency fields based on referral source
+document.querySelectorAll('input[name="referral_source_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const agencyFields = document.getElementById('agency-fields');
+        if (this.value === 'other_agency') {
+            agencyFields.classList.remove('hidden');
+        } else {
+            agencyFields.classList.add('hidden');
+        }
+    });
+});
+
+// Toggle childcare fields
+document.getElementById('attends_childcare').addEventListener('change', function() {
+    const fields = document.getElementById('childcare-fields');
+    if (this.checked) {
+        fields.classList.remove('hidden');
+    } else {
+        fields.classList.add('hidden');
+    }
+});
+
+// Toggle EarlyON fields
+document.getElementById('attends_earlyon').addEventListener('change', function() {
+    const fields = document.getElementById('earlyon-fields');
+    if (this.checked) {
+        fields.classList.remove('hidden');
+    } else {
+        fields.classList.add('hidden');
+    }
+});
+
+// Step navigation
+function showStep(step) {
+    // Hide all steps
+    document.querySelectorAll('.form-step').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // Show current step
+    document.querySelector(`.form-step[data-step="${step}"]`).classList.add('active');
+    
+    // Update progress indicators
+    document.querySelectorAll('.step-indicator').forEach((indicator, index) => {
+        const stepNum = index + 1;
+        if (stepNum < step) {
+            indicator.classList.add('completed');
+            indicator.classList.remove('active');
+        } else if (stepNum === step) {
+            indicator.classList.add('active');
+            indicator.classList.remove('completed');
+        } else {
+            indicator.classList.remove('active', 'completed');
+        }
+    });
+    
+    // Update progress bars
+    for (let i = 1; i < totalSteps; i++) {
+        const bar = document.getElementById(`progress-bar-${i}`);
+        if (i < step) {
+            bar.style.width = '100%';
+        } else {
+            bar.style.width = '0%';
+        }
+    }
+    
+    // Update buttons
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (step === 1) {
+        prevBtn.classList.add('hidden');
+    } else {
+        prevBtn.classList.remove('hidden');
+    }
+    
+    if (step === totalSteps) {
+        nextBtn.classList.add('hidden');
+        submitBtn.classList.remove('hidden');
+        populateReview();
+    } else {
+        nextBtn.classList.remove('hidden');
+        submitBtn.classList.add('hidden');
+    }
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validateStep(step) {
+    const currentStepEl = document.querySelector(`.form-step[data-step="${step}"]`);
+    const inputs = currentStepEl.querySelectorAll('input[required], select[required], textarea[required]');
+    
+    let valid = true;
+    inputs.forEach(input => {
+        if (!input.value && !input.checked) {
+            if (input.type === 'radio') {
+                const radioGroup = currentStepEl.querySelectorAll(`input[name="${input.name}"]`);
+                const anyChecked = Array.from(radioGroup).some(r => r.checked);
+                if (!anyChecked) {
+                    valid = false;
+                    input.closest('div').classList.add('border-red-300');
+                }
+            } else {
+                valid = false;
+                input.classList.add('border-red-500');
+            }
+        } else {
+            input.classList.remove('border-red-500');
+        }
+    });
+    
+    return valid;
+}
+
+function populateReview() {
+    const reviewContent = document.getElementById('review-content');
+    const form = document.getElementById('intakeForm');
+    const formData = new FormData(form);
+    
+    let html = '';
+    
+    // Child Information
+    html += '<div class="bg-white border border-gray-200 rounded-lg p-4">';
+    html += '<h3 class="text-lg font-semibold text-gray-900 mb-3">Child Information</h3>';
+    html += '<dl class="grid grid-cols-1 gap-2 text-sm">';
+    html += `<div><dt class="font-medium text-gray-700">Name:</dt><dd>${formData.get('first_name')} ${formData.get('last_name')}</dd></div>`;
+    html += `<div><dt class="font-medium text-gray-700">Date of Birth:</dt><dd>${formData.get('date_of_birth')}</dd></div>`;
+    if (formData.get('address_line1')) html += `<div><dt class="font-medium text-gray-700">Address:</dt><dd>${formData.get('address_line1')}</dd></div>`;
+    if (formData.get('city')) html += `<div><dt class="font-medium text-gray-700">City:</dt><dd>${formData.get('city')}</dd></div>`;
+    html += '</dl></div>';
+    
+    // Guardian Information
+    html += '<div class="bg-white border border-gray-200 rounded-lg p-4">';
+    html += '<h3 class="text-lg font-semibold text-gray-900 mb-3">Guardian Information</h3>';
+    if (formData.get('guardian1_name')) {
+        html += '<div class="mb-2"><strong>Guardian 1:</strong> ' + formData.get('guardian1_name') + '</div>';
+    }
+    if (formData.get('guardian2_name')) {
+        html += '<div><strong>Guardian 2:</strong> ' + formData.get('guardian2_name') + '</div>';
+    }
+    html += '</div>';
+    
+    // Referral Information
+    html += '<div class="bg-white border border-gray-200 rounded-lg p-4">';
+    html += '<h3 class="text-lg font-semibold text-gray-900 mb-3">Referral Information</h3>';
+    const referralType = formData.get('referral_source_type');
+    if (referralType) {
+        html += `<div class="text-sm">Referred by: ${referralType === 'parent_guardian' ? 'Parent/Guardian' : 'Other Agency'}</div>`;
+    }
+    html += '</div>';
+    
+    // Program Attendance
+    html += '<div class="bg-white border border-gray-200 rounded-lg p-4">';
+    html += '<h3 class="text-lg font-semibold text-gray-900 mb-3">Program Attendance</h3>';
+    html += '<div class="text-sm">';
+    if (formData.get('attends_childcare')) html += '<div>✓ Attending licensed childcare</div>';
+    if (formData.get('attends_earlyon')) html += '<div>✓ Attending EarlyON</div>';
+    if (formData.get('agency_continuing_involvement')) html += '<div>✓ Agency continuing involvement</div>';
+    html += '</div></div>';
+    
+    reviewContent.innerHTML = html;
+}
+
+// Navigation button events
+document.getElementById('nextBtn').addEventListener('click', function() {
+    if (validateStep(currentStep)) {
+        if (currentStep < totalSteps) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    } else {
+        alert('Please fill in all required fields before continuing.');
+    }
+});
+
+document.getElementById('prevBtn').addEventListener('click', function() {
+    if (currentStep > 1) {
+        currentStep--;
+        showStep(currentStep);
+    }
+});
+
+// Form submission
+document.getElementById('intakeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!document.getElementById('referral_consent_on_file').checked) {
+        alert('Please confirm that the referral consent form is on file.');
+        return;
+    }
+    
+    const formData = new FormData(e.target);
+    const data = {
+        first_name: formData.get('first_name'),
+        last_name: formData.get('last_name'),
+        date_of_birth: formData.get('date_of_birth'),
+        address_line1: formData.get('address_line1') || '',
+        address_line2: formData.get('address_line2') || '',
+        city: formData.get('city') || '',
+        postal_code: formData.get('postal_code') || '',
+        alternate_location: formData.get('alternate_location') || '',
+        guardian1_name: formData.get('guardian1_name') || '',
+        guardian1_home_phone: formData.get('guardian1_home_phone') || '',
+        guardian1_work_phone: formData.get('guardian1_work_phone') || '',
+        guardian1_cell_phone: formData.get('guardian1_cell_phone') || '',
+        guardian1_email: formData.get('guardian1_email') || '',
+        guardian2_name: formData.get('guardian2_name') || '',
+        guardian2_home_phone: formData.get('guardian2_home_phone') || '',
+        guardian2_work_phone: formData.get('guardian2_work_phone') || '',
+        guardian2_cell_phone: formData.get('guardian2_cell_phone') || '',
+        guardian2_email: formData.get('guardian2_email') || '',
+        referral_source_type: formData.get('referral_source_type') || '',
+        referral_source_name: formData.get('referral_source_name') || '',
+        referral_source_phone: formData.get('referral_source_phone') || '',
+        referral_agency_name: formData.get('referral_agency_name') || '',
+        referral_agency_address: formData.get('referral_agency_address') || '',
+        referral_reason_cognitive: formData.get('referral_reason_cognitive') ? true : false,
+        referral_reason_language: formData.get('referral_reason_language') ? true : false,
+        referral_reason_gross_motor: formData.get('referral_reason_gross_motor') ? true : false,
+        referral_reason_fine_motor: formData.get('referral_reason_fine_motor') ? true : false,
+        referral_reason_social_emotional: formData.get('referral_reason_social_emotional') ? true : false,
+        referral_reason_self_help: formData.get('referral_reason_self_help') ? true : false,
+        referral_reason_other: formData.get('referral_reason_other') ? true : false,
+        referral_reason_details: formData.get('referral_reason_details') || '',
+        attends_childcare: formData.get('attends_childcare') ? true : false,
+        childcare_centre: formData.get('childcare_centre') || null,
+        childcare_frequency: formData.get('childcare_frequency') || '',
+        attends_earlyon: formData.get('attends_earlyon') ? true : false,
+        earlyon_centre: formData.get('earlyon_centre') || null,
+        earlyon_frequency: formData.get('earlyon_frequency') || '',
+        agency_continuing_involvement: formData.get('agency_continuing_involvement') ? true : false,
+        referral_consent_on_file: true,
+        overall_status: 'active',
+        caseload_status: 'awaiting_assignment'
+    };
+    
+    // Convert null strings to actual null
+    if (data.childcare_centre === '') data.childcare_centre = null;
+    if (data.earlyon_centre === '') data.earlyon_centre = null;
+    
+    try {
+        const response = await fetch('/api/children/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            window.location.href = `/children/${result.id}/`;
+        } else {
+            const errorData = await response.json();
+            alert('Error creating child record: ' + JSON.stringify(errorData));
+        }
+    } catch (error) {
+        alert('Error creating child record: ' + error.message);
+    }
+});
+
+// Initialize
+showStep(1);
+</script>
+{% endblock %}
