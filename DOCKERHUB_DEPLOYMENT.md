@@ -2,50 +2,76 @@
 
 This guide covers deploying ISS Portal using pre-built images from Docker Hub.
 
-## Quick Start
+## Quick Start (Self-Configuring - Recommended)
+
+The ISS Portal Docker image is now **completely self-configuring**! On first run, it will interactively prompt you for all configuration settings and automatically generate security keys.
 
 ### Prerequisites
 - Docker Engine 20.10+
 - Docker Compose 2.0+
 - Internet access to pull images
 
-### Installation Steps
+### Simple Installation Steps
 
-1. **Download deployment files:**
+1. **Download docker-compose.hub.yml:**
    ```bash
-   # Download the minimal deployment package
-   curl -L https://github.com/your-org/iss-portal/releases/download/v2026.02.02/deployment-files.tar.gz | tar -xz
-   cd iss-portal-deployment
+   curl -O https://raw.githubusercontent.com/your-org/iss-portal/main/docker-compose.hub.yml
    ```
 
-2. **Configure environment:**
+2. **Start the application:**
    ```bash
-   cp env.example .env
-   nano .env
-   
-   # Update these required settings:
-   SECRET_KEY=<generate-new-key>
-   FIELD_ENCRYPTION_KEY=<generate-new-key>
-   POSTGRES_PASSWORD=<strong-password>
-   ALLOWED_HOSTS=your-domain.com
+   docker-compose -f docker-compose.hub.yml up
    ```
 
-3. **Deploy with Docker Hub images:**
-   ```bash
-   # Pull and start services
-   docker-compose -f docker-compose.hub.yml up -d
-   
-   # Check status
-   docker-compose -f docker-compose.hub.yml ps
-   
-   # View logs
-   docker-compose -f docker-compose.hub.yml logs -f
-   ```
+3. **Follow interactive setup prompts:**
+   The container will ask for:
+   - **Allowed Hosts** (default: localhost)
+   - **Database Name** (default: iss_portal_db)
+   - **Database Username** (default: iss_user)
+   - **Database Password** (you must provide this - use a strong password!)
+   - **Time Zone** (default: America/Toronto)
+
+   The system automatically generates:
+   - `SECRET_KEY` for Django security
+   - `FIELD_ENCRYPTION_KEY` for PII encryption
 
 4. **Access the application:**
-   - URL: http://your-server-ip
-   - Default credentials: admin / admin123
-   - **Change password immediately!**
+   - URL: http://localhost or http://your-server-ip
+   - Default credentials: **admin / admin123**
+   - **IMPORTANT: Change the default password immediately!**
+
+### Subsequent Runs
+After initial setup, simply use:
+```bash
+docker-compose -f docker-compose.hub.yml up -d
+```
+The setup will be skipped and the application starts directly.
+
+## Manual Configuration (Optional)
+
+If you prefer to configure manually before starting, create a `.env` file:
+```bash
+# Django Settings
+SECRET_KEY=your-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=localhost,127.0.0.1,your-domain.com
+
+# Database Settings
+POSTGRES_DB=iss_portal_db
+POSTGRES_USER=iss_user
+POSTGRES_PASSWORD=secure_password_here
+
+# Encryption
+FIELD_ENCRYPTION_KEY=your-encryption-key-here
+
+# Time Zone
+TIME_ZONE=America/Toronto
+```
+
+Then start with:
+```bash
+docker-compose -f docker-compose.hub.yml up -d
+```
 
 ## Docker Hub Images
 

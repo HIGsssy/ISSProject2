@@ -11,6 +11,82 @@ Django-based web application for managing children's services with staff caseloa
 - Python 3.11-slim
 - Nginx reverse proxy
 
+## Latest Implementation: Self-Configuring Docker Deployment (February 2, 2026)
+
+### Overview
+The ISS Portal Docker image now includes an **interactive self-configuration system** that runs automatically on first launch, making Docker Hub deployment completely automated with push-button simplicity.
+
+### Dual Distribution Strategy
+
+**1. Git Package Distribution**
+- **Target:** Developers, customizable deployments
+- **Package:** iss-portal-v1.0.0.tar.gz (124KB)
+- **Process:** Extract → Run install.sh → Configure interactively → Deploy
+- **Features:** Full source code, customizable, interactive installer
+
+**2. Docker Hub Distribution** ⭐ *New: Self-Configuring*
+- **Target:** End users, production deployments
+- **Image:** hgisssy/iss-portal:latest (405MB)
+- **Process:** Download docker-compose.hub.yml → docker-compose up → Configure interactively
+- **Features:** Pre-built optimized image, self-configuring, one-command deployment
+
+### Self-Configuration Implementation
+
+**Interactive Setup Command:**
+- File: `core/management/commands/interactive_setup.py`
+- Prompts for: allowed hosts, database name, database user, password (confirmed), timezone
+- Auto-generates: SECRET_KEY (secrets.token_urlsafe), FIELD_ENCRYPTION_KEY (Fernet)
+- Creates: /app/.env with complete configuration (permissions 0o600)
+
+**Smart Entry Point:**
+- File: `docker-entrypoint.sh`
+- Detects: Missing or incomplete .env file
+- Runs: `python manage.py interactive_setup` on first launch
+- Skips: Setup on subsequent runs if already configured
+- Continues: Normal startup (PostgreSQL wait, migrations, collectstatic, initial data)
+
+**Docker Configuration:**
+- File: `docker-compose.hub.yml`
+- Includes: `stdin_open: true` and `tty: true` for interactive prompts
+- Mounts: `.env` file as volume for persistence
+
+### User Experience
+
+**First Run:**
+```bash
+docker-compose -f docker-compose.hub.yml up
+# Interactive prompts for configuration
+# Automatic key generation
+# Application starts configured
+```
+
+**Subsequent Runs:**
+```bash
+docker-compose -f docker-compose.hub.yml up -d
+# Skips setup, starts directly
+```
+
+### Docker Hub Deployment
+
+**Repository:** hgisssy/iss-portal
+**Tags:**
+- `latest` - Most recent version (self-configuring)
+- `1.0.1` - Version with self-configuration feature
+- `2026.02.02` - Previous version
+
+**Images Successfully Pushed:**
+- hgisssy/iss-portal:latest (digest: sha256:be759b2c...)
+- hgisssy/iss-portal:1.0.1 (digest: sha256:be759b2c...)
+
+### Documentation Created
+
+- **SELF_CONFIGURING_DOCKER.md** - Complete technical documentation
+- **DOCKERHUB_DEPLOYMENT.md** - Updated with self-configuration instructions
+- **DISTRIBUTION_GUIDE.md** - Maintainer guide for Git and Docker Hub
+- **PACKAGE_README.md** - Installation guide for both distribution methods
+
+**Status:** ✅ Fully implemented, tested, and pushed to Docker Hub
+
 ## Recent Major Implementation: Field-Level Encryption
 
 ### Encryption Details

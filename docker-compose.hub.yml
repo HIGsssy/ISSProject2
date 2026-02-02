@@ -36,11 +36,14 @@ services:
     image: hgisssy/iss-portal:latest
     container_name: iss_portal_web
     command: gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 60 --access-logfile - --error-logfile - iss_portal.wsgi:application
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-iss_portal_db}
+      - POSTGRES_USER=${POSTGRES_USER:-iss_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
     volumes:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
-    env_file:
-      - .env
+      - ./.env:/app/.env  # Mount .env file for persistence
     depends_on:
       db:
         condition: service_healthy
@@ -53,6 +56,8 @@ services:
     networks:
       - iss_network
     restart: unless-stopped
+    stdin_open: true  # Enable interactive input
+    tty: true         # Allocate a pseudo-TTY
 
   # Nginx Reverse Proxy
   nginx:
