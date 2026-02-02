@@ -71,6 +71,8 @@ class CaseloadAssignmentSerializer(serializers.ModelSerializer):
 class ChildListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for child lists."""
     
+    date_of_birth = serializers.DateField(format='%Y-%m-%d')
+    start_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d')
     full_name = serializers.ReadOnlyField()
     age = serializers.ReadOnlyField()
     centre_name = serializers.CharField(source='centre.name', read_only=True)
@@ -100,6 +102,9 @@ class ChildListSerializer(serializers.ModelSerializer):
 class ChildDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for child records."""
     
+    date_of_birth = serializers.DateField(format='%Y-%m-%d')
+    start_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d')
+    end_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d')
     full_name = serializers.ReadOnlyField()
     age = serializers.ReadOnlyField()
     centre_details = CentreSerializer(source='centre', read_only=True)
@@ -130,6 +135,10 @@ class ChildDetailSerializer(serializers.ModelSerializer):
 class ChildCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating children with optional caseload assignment."""
     
+    date_of_birth = serializers.DateField(format='%Y-%m-%d', input_formats=['%Y-%m-%d', 'iso-8601'])
+    start_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d', input_formats=['%Y-%m-%d', 'iso-8601'])
+    end_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d', input_formats=['%Y-%m-%d', 'iso-8601'])
+    
     assign_to_staff = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='staff'),
         required=False,
@@ -155,10 +164,18 @@ class ChildCreateSerializer(serializers.ModelSerializer):
         model = Child
         fields = [
             'id', 'first_name', 'last_name', 'date_of_birth',
-            'address_line1', 'address_line2', 'city', 'province', 'postal_code',
-            'guardian1_name', 'guardian1_phone', 'guardian1_email',
-            'guardian2_name', 'guardian2_phone', 'guardian2_email',
-            'centre', 'caseload_status', 'on_hold', 'start_date', 'end_date', 'notes',
+            'address_line1', 'address_line2', 'city', 'province', 'postal_code', 'alternate_location',
+            'guardian1_name', 'guardian1_home_phone', 'guardian1_work_phone', 'guardian1_cell_phone', 'guardian1_email',
+            'guardian2_name', 'guardian2_home_phone', 'guardian2_work_phone', 'guardian2_cell_phone', 'guardian2_email',
+            'referral_source_type', 'referral_source_name', 'referral_source_phone',
+            'referral_agency_name', 'referral_agency_address',
+            'referral_reason_cognitive', 'referral_reason_language', 'referral_reason_gross_motor',
+            'referral_reason_fine_motor', 'referral_reason_social_emotional', 'referral_reason_self_help',
+            'referral_reason_other', 'referral_reason_details',
+            'attends_childcare', 'childcare_centre', 'childcare_frequency',
+            'attends_earlyon', 'earlyon_centre', 'earlyon_frequency',
+            'agency_continuing_involvement', 'referral_consent_on_file',
+            'centre', 'overall_status', 'caseload_status', 'on_hold', 'start_date', 'end_date', 'discharge_reason', 'notes',
             'assign_to_staff', 'assign_to_self', 'secondary_staff'
         ]
         read_only_fields = ['id']

@@ -20,6 +20,11 @@ from encrypted_model_fields.fields import (
 )
 
 
+def get_today():
+    """Return today's date (not datetime) for DateField defaults."""
+    return timezone.now().date()
+
+
 class Centre(models.Model):
     """Child care centres where inclusion support services are provided."""
     
@@ -185,7 +190,7 @@ class Child(models.Model):
         help_text='Indicates if child is temporarily on hold (not actively seen)'
     )
     
-    start_date = models.DateField(default=timezone.now)
+    start_date = models.DateField(default=get_today)
     end_date = models.DateField(
         null=True,
         blank=True,
