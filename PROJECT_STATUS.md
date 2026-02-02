@@ -1,5 +1,5 @@
 # ISS Portal - Project Status Summary
-*Last Updated: January 21, 2026*
+*Last Updated: February 2, 2026*
 
 ## Project Overview
 Django-based web application for managing children's services with staff caseload management, visit tracking, community partner management, and comprehensive reporting.
@@ -69,6 +69,99 @@ Django-based web application for managing children's services with staff caseloa
 **Docker Configuration:**
 - Dockerfile updated with `libffi-dev` and `libssl-dev` for cryptography support
 - Migration 0005 created and applied for field conversions
+
+## Phase 5: Reporting System (Completed: February 2, 2026)
+
+### Overview
+Comprehensive reporting dashboard with 8 reports accessible to supervisors, admins, and auditors.
+
+### Reports Implemented:
+
+1. **Children Served Report**
+   - Total children by overall_status and caseload_status
+   - Breakdown by centre
+   - CSV export functionality
+
+2. **Visits Report**
+   - Visit statistics by type and centre
+   - Monthly visit trends
+   - Staff visit counts
+   - CSV export functionality
+
+3. **Staff Summary Report**
+   - Caseload counts per staff member (primary/secondary)
+   - Visit counts per staff member
+   - Filterable by staff member
+   - CSV export functionality
+
+4. **Caseload Report**
+   - Children by overall_status (active, discharged)
+   - Children by caseload_status (caseload, non_caseload, awaiting_assignment)
+   - Children with visits but no primary assignment
+   - Primary vs. secondary assignments
+   - CSV export functionality
+
+5. **Age Out Report** ⭐ *Enhanced*
+   - Active children 13+ years old
+   - Centre breakdown
+   - **Monthly age out breakdown** - Shows when each child turned 13 years old
+   - Visual bar charts for monthly tracking
+   - Detailed list with age, aged out month, centre, primary staff
+   - CSV export with monthly data
+
+6. **Month Added Report**
+   - Children intake volume by month
+   - Uses start_date field for tracking
+   - Visual trend indicators
+   - CSV export functionality
+
+7. **Staff Site Visits Report**
+   - Site visits (child__isnull=True) grouped by staff member
+   - Visit type breakdown
+   - Monthly trends
+   - CSV export functionality
+
+8. **Site Visit Summary Report**
+   - Aggregate site visit statistics
+   - Breakdown by centre and visit type
+   - Monthly trends
+   - CSV export functionality
+
+### Technical Implementation:
+
+**Files Modified:**
+- `reports/views.py`: All 8 report view functions with CSV export logic
+- `reports/urls.py`: URL routing for all reports
+- `templates/reports/dashboard.html`: Report cards with visual indicators
+- `templates/reports/*.html`: Individual report templates with filtering
+
+**Key Features:**
+- Permission checks: @login_required + @user_passes_test(can_access_reports)
+- CSV export: All reports include downloadable CSV format
+- Filters: Centre, staff member, date range (where applicable)
+- Visual indicators: Color-coded cards, bar charts, badges
+- Responsive design: Tailwind CSS grid layouts
+
+**Date Calculations:**
+- Uses `dateutil.relativedelta` for accurate age calculations
+- Age Out Report: cutoff_date = today - 13 years
+- Monthly tracking: Groups by month using strftime('%Y-%m')
+
+### Bug Fixes During Phase 5:
+
+**Age Out Report Issues (Fixed: February 2, 2026)**
+- **Issue:** AttributeError on .select_related('primary_staff')
+- **Fix:** Removed 'primary_staff' from select_related - it's a method, not a FK field
+- **Template Fix:** Changed from `child.primary_staff` to `{% with primary=child.get_primary_staff %}`
+- **CSV Fix:** Updated to call get_primary_staff() method instead of field access
+
+**Caseload Report Issues (Fixed: February 2, 2026)**
+- **Issue:** FieldError on 'status' field
+- **Fix:** Changed to use correct field names: 'overall_status' and 'caseload_status'
+- **Template Fix:** Split into two separate tables for different status types
+- **Context Variables:** Updated to children_by_overall_status and children_by_caseload_status
+
+**Status:** ✅ All 8 reports fully operational with CSV export
 
 ## Recent Bug Fixes
 

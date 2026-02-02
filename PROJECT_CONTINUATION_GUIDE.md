@@ -1,6 +1,6 @@
 # ISS Portal - Project Continuation Guide
-**Last Updated:** January 23, 2026  
-**Project Status:** Fully Operational - Recent Status System Refactoring Complete
+**Last Updated:** February 2, 2026  
+**Project Status:** Fully Operational - Phase 5 Reporting Complete
 
 ---
 
@@ -298,6 +298,25 @@ ROLE_CHOICES = [
 - **Process:** Upload → Preview with validation → Confirm import
 - **Required Fields:** first_name, last_name, date_of_birth
 - **Optional Fields:** All address/guardian fields, notes, on_hold
+
+### 6. Reporting System (Phase 5 - Completed February 2, 2026)
+- **Access:** Supervisors, Admins, and Auditors only
+- **Location:** Dashboard → "Reports" section with 8 report cards
+- **Reports Available:**
+  1. **Children Served** - Status and centre breakdowns
+  2. **Visits** - Visit statistics and trends
+  3. **Staff Summary** - Caseload and visit counts per staff
+  4. **Caseload** - Assignment statistics by status type
+  5. **Age Out** - Children 13+ with monthly aging-out breakdown
+  6. **Month Added** - Intake volume by month
+  7. **Staff Site Visits** - Site visit tracking by staff
+  8. **Site Visit Summary** - Aggregate site visit statistics
+- **Features:** All reports include CSV export, filters, and visual indicators
+- **Key Functions:**
+  - `age_out_report()`: Calculates when each child turned 13, groups by month
+  - `month_added_report()`: Tracks intake trends using start_date
+  - `staff_site_visits_report()`: Groups site visits (child__isnull=True) by staff
+  - Permission checks via `can_access_reports()` decorator
 - **Defaults:** overall_status='active', caseload_status='awaiting_assignment'
 - **Template Download:** System generates CSV template
 

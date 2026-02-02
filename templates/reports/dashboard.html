@@ -97,6 +97,95 @@
                 </div>
             </div>
         </div>
+
+        <!-- Age Out Report -->
+        <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div class="p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-red-500 rounded-md p-3">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-medium text-gray-900">Age Out Report</h3>
+                        <p class="text-sm text-gray-500 mt-1">Children 13+ years (aging out)</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <a href="{% url 'reports:age_out' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                        View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Month Added Report -->
+        <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div class="p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-indigo-500 rounded-md p-3">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-medium text-gray-900">Month Added Report</h3>
+                        <p class="text-sm text-gray-500 mt-1">Intake volume by month</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <a href="{% url 'reports:month_added' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                        View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staff Site Visits Report -->
+        <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div class="p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-teal-500 rounded-md p-3">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-medium text-gray-900">Staff Site Visits</h3>
+                        <p class="text-sm text-gray-500 mt-1">Site visits by staff member</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <a href="{% url 'reports:staff_site_visits' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
+                        View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Site Visit Summary Report -->
+        <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div class="p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-pink-500 rounded-md p-3">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-medium text-gray-900">Site Visit Summary</h3>
+                        <p class="text-sm text-gray-500 mt-1">Aggregate site visit statistics</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <a href="{% url 'reports:site_visit_summary' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-pink-600 hover:bg-pink-700">
+                        View Report
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
