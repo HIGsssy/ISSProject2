@@ -92,23 +92,77 @@ class Child(models.Model):
     city = EncryptedCharField(max_length=100, blank=True)
     province = EncryptedCharField(max_length=50, blank=True, default='ON')
     postal_code = EncryptedCharField(max_length=10, blank=True)
+    alternate_location = EncryptedTextField(blank=True, help_text='Location if different than mailing address')
     
-    # Guardian information - encrypted
+    # Guardian 1 information - encrypted
     guardian1_name = EncryptedCharField(max_length=200, blank=True)
-    guardian1_phone = EncryptedCharField(max_length=20, blank=True)
+    guardian1_home_phone = EncryptedCharField(max_length=20, blank=True)
+    guardian1_work_phone = EncryptedCharField(max_length=20, blank=True)
+    guardian1_cell_phone = EncryptedCharField(max_length=20, blank=True)
     guardian1_email = EncryptedEmailField(blank=True)
+    
+    # Guardian 2 information - encrypted
     guardian2_name = EncryptedCharField(max_length=200, blank=True, verbose_name='Second Guardian Name')
-    guardian2_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Phone')
+    guardian2_home_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Home Phone')
+    guardian2_work_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Work Phone')
+    guardian2_cell_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Cell Phone')
     guardian2_email = EncryptedEmailField(blank=True, verbose_name='Second Guardian Email')
     
-    # Optional centre association
+    # Referral source information - encrypted
+    REFERRAL_SOURCE_CHOICES = [
+        ('parent_guardian', 'Parent/Guardian'),
+        ('other_agency', 'Other Agency'),
+    ]
+    referral_source_type = models.CharField(max_length=20, choices=REFERRAL_SOURCE_CHOICES, blank=True)
+    referral_source_name = EncryptedCharField(max_length=200, blank=True, help_text='Name of person/contact referring')
+    referral_source_phone = EncryptedCharField(max_length=20, blank=True)
+    referral_agency_name = EncryptedCharField(max_length=200, blank=True, help_text='Agency name (if other_agency)')
+    referral_agency_address = EncryptedTextField(blank=True, help_text='Agency address (if other_agency)')
+    
+    # Reason for referral - encrypted details
+    referral_reason_cognitive = models.BooleanField(default=False)
+    referral_reason_language = models.BooleanField(default=False)
+    referral_reason_gross_motor = models.BooleanField(default=False)
+    referral_reason_fine_motor = models.BooleanField(default=False)
+    referral_reason_social_emotional = models.BooleanField(default=False)
+    referral_reason_self_help = models.BooleanField(default=False)
+    referral_reason_other = models.BooleanField(default=False)
+    referral_reason_details = EncryptedTextField(blank=True, help_text='Details about referral reasons')
+    
+    # Program attendance
+    attends_childcare = models.BooleanField(default=False, help_text='Attending licensed childcare')
+    childcare_centre = models.ForeignKey(
+        Centre,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='childcare_children',
+        help_text='Childcare centre (if attending)'
+    )
+    childcare_frequency = EncryptedCharField(max_length=100, blank=True, help_text='How often attending childcare')
+    
+    attends_earlyon = models.BooleanField(default=False, help_text='Attending EarlyON Child and Family Center')
+    earlyon_centre = models.ForeignKey(
+        Centre,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='earlyon_children',
+        help_text='EarlyON centre (if attending)'
+    )
+    earlyon_frequency = EncryptedCharField(max_length=100, blank=True, help_text='How often attending EarlyON')
+    
+    agency_continuing_involvement = models.BooleanField(default=False, help_text='Referring agency continuing involvement')
+    referral_consent_on_file = models.BooleanField(default=False, help_text='Referral consent form on file')
+    
+    # Optional centre association (for caseload tracking)
     centre = models.ForeignKey(
         Centre,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='children',
-        help_text='Current centre (can be empty for non-caseload children)'
+        help_text='Current centre for caseload (can be empty for non-caseload children)'
     )
     
     # Status fields
@@ -167,12 +221,6 @@ class Child(models.Model):
         ordering = ['last_name', 'first_name']
         verbose_name = 'Child'
         verbose_name_plural = 'Children'
-        indexes = [
-            models.Index(fields=['overall_status']),
-            models.Index(fields=['caseload_status']),
-            models.Index(fields=['on_hold']),
-            models.Index(fields=['last_name', 'first_name']),
-        ]
     
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -255,13 +303,17 @@ class Visit(models.Model):
     
     The centre field captures the child's centre at time of visit creation
     and does not update if the child's centre changes later.
+    
+    For site visits (without a child), the child field is null.
     """
     
     child = models.ForeignKey(
         Child,
         on_delete=models.PROTECT,
         related_name='visits',
-        help_text='Child who received the visit'
+        null=True,
+        blank=True,
+        help_text='Child who received the visit (null for site visits)'
     )
     
     staff = models.ForeignKey(
@@ -323,10 +375,16 @@ class Visit(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.child.full_name} - {self.visit_date} ({self.staff.get_full_name()})"
+        if self.child:
+            return f"{self.child.full_name} - {self.visit_date} ({self.staff.get_full_name()})"
+        return f"Site Visit - {self.visit_date} ({self.staff.get_full_name()})"
     
     def clean(self):
         """Validate visit data."""
+        # At least one of child or centre must be specified
+        if not self.child and not self.centre:
+            raise ValidationError('Either a child or a centre must be specified for the visit.')
+        
         if self.start_time and self.end_time:
             if self.end_time <= self.start_time:
                 raise ValidationError({

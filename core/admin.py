@@ -96,7 +96,7 @@ class ChildAdmin(admin.ModelAdmin):
         'last_name',
         'guardian1_name',
         'guardian1_email',
-        'guardian1_phone'
+        'guardian1_cell_phone'
     ]
     
     ordering = ['last_name', 'first_name']
@@ -109,14 +109,43 @@ class ChildAdmin(admin.ModelAdmin):
             'fields': ('overall_status', 'caseload_status', 'on_hold')
         }),
         ('Address', {
-            'fields': ('address_line1', 'address_line2', 'city', 'province', 'postal_code'),
+            'fields': ('address_line1', 'address_line2', 'city', 'province', 'postal_code', 'alternate_location'),
             'classes': ('collapse',)
         }),
-        ('Guardian Information', {
+        ('Guardian 1 Information', {
             'fields': (
-                'guardian1_name', 'guardian1_phone', 'guardian1_email',
-                'guardian2_name', 'guardian2_phone', 'guardian2_email'
+                'guardian1_name', 
+                'guardian1_home_phone', 'guardian1_work_phone', 'guardian1_cell_phone',
+                'guardian1_email',
             )
+        }),
+        ('Guardian 2 Information', {
+            'fields': (
+                'guardian2_name',
+                'guardian2_home_phone', 'guardian2_work_phone', 'guardian2_cell_phone',
+                'guardian2_email'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Referral Information', {
+            'fields': (
+                'referral_source_type', 'referral_source_name', 'referral_source_phone',
+                'referral_agency_name', 'referral_agency_address',
+                'referral_reason_cognitive', 'referral_reason_language', 
+                'referral_reason_gross_motor', 'referral_reason_fine_motor',
+                'referral_reason_social_emotional', 'referral_reason_self_help', 'referral_reason_other',
+                'referral_reason_details',
+                'referral_consent_on_file'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Program Attendance', {
+            'fields': (
+                'attends_childcare', 'childcare_centre', 'childcare_frequency',
+                'attends_earlyon', 'earlyon_centre', 'earlyon_frequency',
+                'agency_continuing_involvement'
+            ),
+            'classes': ('collapse',)
         }),
         ('Service Information', {
             'fields': ('centre', 'start_date', 'end_date', 'discharge_reason', 'notes')
@@ -191,10 +220,46 @@ class ChildAdmin(admin.ModelAdmin):
 class VisitTypeAdmin(admin.ModelAdmin):
     """Admin interface for managing visit types."""
     
-    list_display = ['name', 'is_active', 'description']
+    list_display = ['name', 'is_active_badge', 'description', 'visit_count']
     list_filter = ['is_active']
     search_fields = ['name', 'description']
     ordering = ['name']
+    
+    fieldsets = (
+        ('Visit Type Details', {
+            'fields': ('name', 'description', 'is_active')
+        }),
+    )
+    
+    def is_active_badge(self, obj):
+        """Display active status as colored badge."""
+        if obj.is_active:
+            return format_html(
+                '<span style="background-color: #10b981; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 12px; font-weight: bold;">ACTIVE</span>'
+            )
+        else:
+            return format_html(
+                '<span style="background-color: #6b7280; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 12px; font-weight: bold;">INACTIVE</span>'
+            )
+    is_active_badge.short_description = 'Status'
+    
+    def visit_count(self, obj):
+        """Count of visits using this type."""
+        count = obj.visits.count()
+        if count > 0:
+            url = reverse('admin:core_visit_changelist') + f'?visit_type__id__exact={obj.id}'
+            return format_html('<a href="{}">{} visits</a>', url, count)
+        return '0 visits'
+    visit_count.short_description = 'Usage'
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of visit types that are in use."""
+        if obj and obj.visits.exists():
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 
 @admin.register(Visit)

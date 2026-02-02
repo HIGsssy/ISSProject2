@@ -150,91 +150,92 @@
     </div>
 </div>
 
-<!-- Referrals Section -->
-<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-        <div class="flex justify-between items-center mb-3">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Community Partner Referrals</h3>
-            {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %}
-            <a href="{% url 'add_referral' child.pk %}" 
-               class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Add Referral
-            </a>
-            {% endif %}
-        </div>
-        
-        <!-- Filter Tabs -->
-        <div class="flex space-x-2 border-b border-gray-200">
-            <a href="?referral_status=active" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'active' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Active
-            </a>
-            <a href="?referral_status=completed" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'completed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Completed
-            </a>
-            <a href="?referral_status=closed" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'closed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Closed
-            </a>
-            <a href="?referral_status=all" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'all' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                All
-            </a>
-        </div>
-    </div>
-    <div class="px-4 py-5 sm:p-6">
-        {% if referrals %}
-        <ul class="divide-y divide-gray-200">
-            {% for referral in referrals %}
-            <li class="py-4">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center">
-                            <p class="text-sm font-medium text-gray-900">
-                                {{ referral.community_partner.name }}
-                            </p>
-                            <span class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                {% if referral.status == 'pending' %}bg-yellow-100 text-yellow-800
-                                {% elif referral.status == 'accepted' %}bg-blue-100 text-blue-800
-                                {% elif referral.status == 'completed' %}bg-green-100 text-green-800
-                                {% elif referral.status == 'declined' %}bg-red-100 text-red-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ referral.get_status_display }}
-                            </span>
-                        </div>
-                        <p class="mt-1 text-sm text-gray-500">
-                            {{ referral.community_partner.get_partner_type_display }}
-                        </p>
-                        <p class="mt-1 text-sm text-gray-600">
-                            {{ referral.reason|truncatewords:20 }}
-                        </p>
-                        <div class="mt-2 flex items-center text-xs text-gray-500">
-                            <span>Referred by {{ referral.referred_by.get_full_name }}</span>
-                            <span class="mx-2">•</span>
-                            <span>{{ referral.referral_date }}</span>
-                        </div>
-                    </div>
-                    {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %}
-                    <div class="ml-4">
-                        <a href="{% url 'edit_referral' referral.pk %}" 
-                           class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
-                            Edit
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-sm text-gray-500 text-center py-4">No referrals yet.</p>
-        {% endif %}
-    </div>
-</div>
+{# Referrals Section - Temporarily Disabled #}
+{# <!-- Referrals Section --> #}
+{# <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6"> #}
+{#     <div class="px-4 py-5 sm:px-6 border-b border-gray-200"> #}
+{#         <div class="flex justify-between items-center mb-3"> #}
+{#             <h3 class="text-lg leading-6 font-medium text-gray-900">Community Partner Referrals</h3> #}
+{#             {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %} #}
+{#             <a href="{% url 'add_referral' child.pk %}"  #}
+{#                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"> #}
+{#                 <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"> #}
+{#                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path> #}
+{#                 </svg> #}
+{#                 Add Referral #}
+{#             </a> #}
+{#             {% endif %} #}
+{#         </div> #}
+{#          #}
+{#         <!-- Filter Tabs --> #}
+{#         <div class="flex space-x-2 border-b border-gray-200"> #}
+{#             <a href="?referral_status=active"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'active' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 Active #}
+{#             </a> #}
+{#             <a href="?referral_status=completed"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'completed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 Completed #}
+{#             </a> #}
+{#             <a href="?referral_status=closed"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'closed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 Closed #}
+{#             </a> #}
+{#             <a href="?referral_status=all"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'all' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 All #}
+{#             </a> #}
+{#         </div> #}
+{#     </div> #}
+{#     <div class="px-4 py-5 sm:p-6"> #}
+{#         {% if referrals %} #}
+{#         <ul class="divide-y divide-gray-200"> #}
+{#             {% for referral in referrals %} #}
+{#             <li class="py-4"> #}
+{#                 <div class="flex items-start justify-between"> #}
+{#                     <div class="flex-1"> #}
+{#                         <div class="flex items-center"> #}
+{#                             <p class="text-sm font-medium text-gray-900"> #}
+{#                                 {{ referral.community_partner.name }} #}
+{#                             </p> #}
+{#                             <span class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full  #}
+{#                                 {% if referral.status == 'pending' %}bg-yellow-100 text-yellow-800 #}
+{#                                 {% elif referral.status == 'accepted' %}bg-blue-100 text-blue-800 #}
+{#                                 {% elif referral.status == 'completed' %}bg-green-100 text-green-800 #}
+{#                                 {% elif referral.status == 'declined' %}bg-red-100 text-red-800 #}
+{#                                 {% else %}bg-gray-100 text-gray-800{% endif %}"> #}
+{#                                 {{ referral.get_status_display }} #}
+{#                             </span> #}
+{#                         </div> #}
+{#                         <p class="mt-1 text-sm text-gray-500"> #}
+{#                             {{ referral.community_partner.get_partner_type_display }} #}
+{#                         </p> #}
+{#                         <p class="mt-1 text-sm text-gray-600"> #}
+{#                             {{ referral.reason|truncatewords:20 }} #}
+{#                         </p> #}
+{#                         <div class="mt-2 flex items-center text-xs text-gray-500"> #}
+{#                             <span>Referred by {{ referral.referred_by.get_full_name }}</span> #}
+{#                             <span class="mx-2">•</span> #}
+{#                             <span>{{ referral.referral_date }}</span> #}
+{#                         </div> #}
+{#                     </div> #}
+{#                     {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %} #}
+{#                     <div class="ml-4"> #}
+{#                         <a href="{% url 'edit_referral' referral.pk %}"  #}
+{#                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"> #}
+{#                             Edit #}
+{#                         </a> #}
+{#                     </div> #}
+{#                     {% endif %} #}
+{#                 </div> #}
+{#             </li> #}
+{#             {% endfor %} #}
+{#         </ul> #}
+{#         {% else %} #}
+{#         <p class="text-sm text-gray-500 text-center py-4">No referrals yet.</p> #}
+{#         {% endif %} #}
+{#     </div> #}
+{# </div> #}
 
 <!-- Recent Visits -->
 <div class="bg-white shadow overflow-hidden sm:rounded-lg">

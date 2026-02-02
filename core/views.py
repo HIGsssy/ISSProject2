@@ -348,30 +348,26 @@ def edit_visit(request, pk):
 
 @login_required
 def add_child(request):
-    """Add a new child."""
+    """Add a new child - Multi-step intake form (Supervisors and Admins only)."""
     user = request.user
     
-    # Check permissions
-    if not (user.is_superuser or (hasattr(user, 'role') and user.role in ['staff', 'supervisor', 'admin'])):
+    # Check permissions - only supervisors and admins can add children
+    if not (user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])):
         return redirect('dashboard')
     
     if request.method == 'POST':
         # This will be handled by the frontend/API
         return redirect('all_children')
     
-    # Get staff members for assignment (only for supervisors/admins)
-    staff_members = None
-    is_supervisor_or_admin = user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])
-    
-    if is_supervisor_or_admin:
-        staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
-    
+    # Get staff members for assignment
+    staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
     centres = Centre.objects.filter(status='active').order_by('name')
+    earlyon_centres = centres.filter(name__icontains='early')  # Filter centres with "early" in name
     
     context = {
         'centres': centres,
+        'earlyon_centres': earlyon_centres,
         'staff_members': staff_members,
-        'is_supervisor_or_admin': is_supervisor_or_admin,
     }
     
     return render(request, 'core/add_child.html', context)

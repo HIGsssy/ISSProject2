@@ -12,12 +12,30 @@
     <form id="visitForm" class="space-y-6">
         {% csrf_token %}
         
-        <!-- Child Selection -->
-        <div>
+        <!-- Visit Type Toggle -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Visit Category</label>
+            <div class="flex gap-4">
+                <label class="flex items-center cursor-pointer">
+                    <input type="radio" name="visit_category" value="child" checked
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                    <span class="ml-2 text-sm text-gray-900">Child Visit</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="radio" name="visit_category" value="site"
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                    <span class="ml-2 text-sm text-gray-900">Site Visit</span>
+                </label>
+            </div>
+            <p class="mt-2 text-xs text-gray-500">Choose "Child Visit" for visits with a specific child, or "Site Visit" for general centre visits</p>
+        </div>
+        
+        <!-- Child Selection (shown for child visits only) -->
+        <div id="childSection">
             <label for="child" class="block text-sm font-medium text-gray-700 mb-2">
                 Child <span class="text-red-500">*</span>
             </label>
-            <select id="child" name="child" required
+            <select id="child" name="child"
                     class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Select a child...</option>
                 {% for child in children %}
@@ -28,7 +46,19 @@
             </select>
         </div>
         
-        <!-- Visit Date -->
+        <!-- Centre (required for site visits, optional for child visits) -->
+        <div>
+            <label for="centre" class="block text-sm font-medium text-gray-700 mb-2">
+                Centre <span id="centreRequired" class="text-gray-500 text-xs">(Optional)</span>
+            </label>
+            <select id="centre" name="centre"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Not at a tracked centre</option>
+                {% for centre in centres %}
+                <option value="{{ centre.pk }}" {% if selected_centre and selected_centre.pk == centre.pk %}selected{% endif %}>{{ centre.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div>
             <label for="visit_date" class="block text-sm font-medium text-gray-700 mb-2">
                 Visit Date <span class="text-red-500">*</span>
@@ -91,20 +121,6 @@
                 </label>
                 {% endfor %}
             </div>
-        </div>
-        
-        <!-- Centre (Optional) -->
-        <div>
-            <label for="centre" class="block text-sm font-medium text-gray-700 mb-2">
-                Centre <span class="text-gray-500 text-xs">(Optional)</span>
-            </label>
-            <select id="centre" name="centre"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                <option value="">Not at a tracked centre</option>
-                {% for centre in centres %}
-                <option value="{{ centre.pk }}" {% if selected_centre and selected_centre.pk == centre.pk %}selected{% endif %}>{{ centre.name }}</option>
-                {% endfor %}
-            </select>
         </div>
         
         <!-- Location Description (for non-centre visits) -->
@@ -188,13 +204,48 @@
     document.getElementById('start_time').addEventListener('change', calculateDuration);
     document.getElementById('end_time').addEventListener('change', calculateDuration);
     
+    // Handle visit category toggle
+    const visitCategoryRadios = document.getElementsByName('visit_category');
+    const childSection = document.getElementById('childSection');
+    const childSelect = document.getElementById('child');
+    const centreSelect = document.getElementById('centre');
+    const centreRequiredLabel = document.getElementById('centreRequired');
+    
+    function updateFormBasedOnCategory() {
+        const isSiteVisit = document.querySelector('input[name="visit_category"]:checked').value === 'site';
+        
+        if (isSiteVisit) {
+            // Site visit - hide child selection, make centre required
+            childSection.style.display = 'none';
+            childSelect.removeAttribute('required');
+            childSelect.value = '';
+            centreRequiredLabel.innerHTML = '<span class="text-red-500">*</span>';
+            centreSelect.setAttribute('required', 'required');
+        } else {
+            // Child visit - show child selection, make child required, centre optional
+            childSection.style.display = 'block';
+            childSelect.setAttribute('required', 'required');
+            centreRequiredLabel.innerHTML = '(Optional)';
+            centreRequiredLabel.classList.add('text-gray-500', 'text-xs');
+            centreSelect.removeAttribute('required');
+        }
+    }
+    
+    visitCategoryRadios.forEach(radio => {
+        radio.addEventListener('change', updateFormBasedOnCategory);
+    });
+    
+    // Initialize on load
+    updateFormBasedOnCategory();
+    
     // Form submission via API
     document.getElementById('visitForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const formData = new FormData(e.target);
+        const isSiteVisit = formData.get('visit_category') === 'site';
+        
         const data = {
-            child: parseInt(formData.get('child')),
             staff: {{ user.pk }},
             visit_date: formData.get('visit_date'),
             start_time: formData.get('start_time'),
@@ -203,6 +254,12 @@
             location_description: formData.get('location_description') || '',
             notes: formData.get('notes') || ''
         };
+        
+        // Only include child for child visits
+        const childValue = formData.get('child');
+        if (!isSiteVisit && childValue) {
+            data.child = parseInt(childValue);
+        }
         
         const centreValue = formData.get('centre');
         if (centreValue) {
