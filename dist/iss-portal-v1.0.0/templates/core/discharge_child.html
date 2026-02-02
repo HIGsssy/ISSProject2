@@ -54,9 +54,19 @@
                 <div>
                     <dt class="text-xs text-gray-500">Current Status:</dt>
                     <dd class="text-sm">
-                        <span class="status-badge status-{{ child.status }}">
-                            {{ child.get_status_display }}
-                        </span>
+                        <div class="flex gap-2">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full overall-status-{{ child.overall_status }}">
+                                {{ child.get_overall_status_display }}
+                            </span>
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full caseload-status-{{ child.caseload_status }}">
+                                {{ child.get_caseload_status_display }}
+                            </span>
+                            {% if child.on_hold %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full on-hold-badge">
+                                On Hold
+                            </span>
+                            {% endif %}
+                        </div>
                     </dd>
                 </div>
                 <div>

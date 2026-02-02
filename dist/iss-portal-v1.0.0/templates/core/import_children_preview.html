@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Preview - ISS Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Import Preview</h1>
+        <p class="mt-2 text-gray-600">Review the records before importing</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-5">
+                    <p class="text-sm font-medium text-gray-500">Valid Records</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ preview.valid|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-red-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-5">
+                    <p class="text-sm font-medium text-gray-500">Invalid Records</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ preview.invalid|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-yellow-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <div class="ml-5">
+                    <p class="text-sm font-medium text-gray-500">Duplicates</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ duplicates|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Duplicates Warning -->
+    {% if has_duplicates %}
+    <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+            </div>
+            <div class="ml-3 flex-1">
+                <h3 class="text-sm font-medium text-yellow-800">Duplicate Records Detected</h3>
+                <div class="mt-2 text-sm text-yellow-700">
+                    <p class="mb-2">The following records match existing children (same name and date of birth):</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        {% for dup in duplicates %}
+                        <li>Row {{ dup.row_num }}: {{ dup.name }} (DOB: {{ dup.dob }}) - 
+                            <a href="{% url 'child_detail' dup.existing_id %}" target="_blank" class="text-blue-600 hover:underline">View Existing</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="mt-2 font-medium">These will be skipped during import (unless you uncheck the option below).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Invalid Records -->
+    {% if preview.invalid %}
+    <div class="mb-6 bg-red-50 border border-red-200 rounded-lg overflow-hidden">
+        <div class="px-6 py-4 bg-red-100 border-b border-red-200">
+            <h3 class="text-lg font-medium text-red-900">❌ Invalid Records ({{ preview.invalid|length }})</h3>
+            <p class="text-sm text-red-700 mt-1">These records have errors and will not be imported. Please fix them in your CSV and re-upload.</p>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Row</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">DOB</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Errors</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for row in preview.invalid %}
+                        <tr>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ row.row_num }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ row.data.first_name|default:"-" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ row.data.last_name|default:"-" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ row.data.date_of_birth|default:"-" }}</td>
+                            <td class="px-4 py-3">
+                                <ul class="text-sm text-red-600 space-y-1">
+                                    {% for error in row.errors %}
+                                    <li>• {{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Valid Records -->
+    {% if preview.valid %}
+    <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-green-50 border-b border-green-200">
+            <h3 class="text-lg font-medium text-green-900">✓ Valid Records ({{ preview.valid|length }})</h3>
+            <p class="text-sm text-green-700 mt-1">These records will be imported</p>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Row</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">DOB</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Centre</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guardian</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for row in preview.valid %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ row.row_num }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 font-medium">
+                                {{ row.data.first_name }} {{ row.data.last_name }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ row.data.date_of_birth }}</td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex px-2 text-xs font-semibold rounded-full
+                                    {% if row.data.status == 'active' %}bg-green-100 text-green-800
+                                    {% elif row.data.status == 'on_hold' %}bg-yellow-100 text-yellow-800
+                                    {% elif row.data.status == 'discharged' %}bg-gray-100 text-gray-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{ row.data.status }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ row.centre_name|default:"-" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ row.data.guardian1_name|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Form -->
+    <form method="post" class="bg-white shadow rounded-lg p-6">
+        {% csrf_token %}
+        
+        {% if has_duplicates %}
+        <div class="mb-6">
+            <label class="flex items-center">
+                <input type="checkbox" name="skip_duplicates" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" checked>
+                <span class="ml-2 text-sm text-gray-700">Skip duplicate records (recommended)</span>
+            </label>
+        </div>
+        {% endif %}
+
+        <div class="flex items-center justify-between">
+            <a href="{% url 'import_children' %}" 
+               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Cancel &amp; Upload New File
+            </a>
+            
+            {% if preview.valid %}
+            <button type="submit" 
+                    class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Confirm Import ({{ preview.valid|length }} record{{ preview.valid|length|pluralize }})
+            </button>
+            {% else %}
+            <span class="text-sm text-gray-500">No valid records to import</span>
+            {% endif %}
+        </div>
+    </form>
+    {% else %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <p class="text-yellow-800">No valid records found in the uploaded file.</p>
+        <a href="{% url 'import_children' %}" class="text-blue-600 hover:underline mt-2 inline-block">
+            Upload a different file
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

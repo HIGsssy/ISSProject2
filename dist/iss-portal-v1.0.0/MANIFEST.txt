@@ -1,0 +1,166 @@
+================================================================================
+ISS Portal - Deployment Package Manifest
+================================================================================
+
+Package Information:
+-------------------
+Package Name: iss-portal-v1.0.0
+Version: 1.0.0
+Build Date: 2026-02-02 14:40:28 EST
+Built By: iholmes
+Build Host: ITCB-2023
+
+Package Contents:
+----------------
+  - CSV_IMPORT_FORMAT.md
+  - DEPLOYMENT.md
+  - Dockerfile
+  - PACKAGE_README.md
+  - README.md
+  - accounts/__init__.py
+  - accounts/admin.py
+  - accounts/apps.py
+  - accounts/migrations/0001_initial.py
+  - accounts/migrations/0002_alter_user_options_alter_user_managers_and_more.py
+  - accounts/migrations/__init__.py
+  - accounts/models.py
+  - audit/__init__.py
+  - audit/admin.py
+  - audit/apps.py
+  - audit/middleware.py
+  - audit/migrations/0001_initial.py
+  - audit/migrations/0002_alter_auditlog_options_alter_auditlog_action_and_more.py
+  - audit/migrations/__init__.py
+  - audit/models.py
+  - audit/signals.py
+  - backup.sh
+  - core/__init__.py
+  - core/admin.py
+  - core/api_urls.py
+  - core/apps.py
+  - core/management/__init__.py
+  - core/management/commands/__init__.py
+  - core/management/commands/create_initial_data.py
+  - core/management/commands/generate_encryption_key.py
+  - core/management/commands/verify_encryption.py
+  - core/migrations/0001_initial.py
+  - core/migrations/0002_rename_core_visit_visit_d_e8a456_idx_core_visit_visit_d_26d9ec_idx_and_more.py
+  - core/migrations/0003_child_discharge_reason.py
+  - core/migrations/0004_communitypartner_referral_and_more.py
+  - core/migrations/0005_rename_core_referr_child_i_7a3f92_idx_core_referr_child_i_2736d2_idx_and_more.py
+  - core/migrations/0006_restructure_child_status.py
+  - core/migrations/__init__.py
+  - core/models.py
+  - core/permissions.py
+  - core/serializers.py
+  - core/signals.py
+  - core/urls.py
+  - core/utils/__init__.py
+  - core/utils/csv_import.py
+  - core/views.py
+  - core/viewsets.py
+  - deploy.sh
+  - docker-compose.yml
+  - docker-entrypoint.sh
+  - env.example
+  - iss-portal.service
+  - iss_portal/__init__.py
+  - iss_portal/asgi.py
+  - iss_portal/settings.py
+  - iss_portal/urls.py
+  - iss_portal/wsgi.py
+  - manage.py
+  - nginx/conf.d/default.conf
+  - nginx/nginx.conf
+  - nginx/ssl/README.md
+  - reports/__init__.py
+  - reports/admin.py
+  - reports/apps.py
+  - reports/migrations/__init__.py
+  - reports/models.py
+  - reports/urls.py
+  - reports/views.py
+  - requirements.txt
+  - start.sh
+  - static/css/custom.css
+  - status.sh
+  - stop.sh
+  - templates/base.html
+  - templates/core/add_child.html
+  - templates/core/add_child_wizard.html
+  - templates/core/add_community_partner.html
+  - templates/core/add_referral.html
+  - templates/core/add_visit.html
+  - templates/core/all_children.html
+  - templates/core/child_detail.html
+  - templates/core/community_partners.html
+  - templates/core/dashboard.html
+  - templates/core/discharge_child.html
+  - templates/core/edit_child.html
+  - templates/core/edit_community_partner.html
+  - templates/core/edit_referral.html
+  - templates/core/edit_visit.html
+  - templates/core/import_children.html
+  - templates/core/import_children_preview.html
+  - templates/core/manage_caseload.html
+  - templates/core/my_caseload.html
+  - templates/core/non_caseload_children.html
+  - templates/core/referrals_management.html
+  - templates/core/visit_detail.html
+  - templates/login.html
+  - templates/reports/age_out_report.html
+  - templates/reports/caseload_report.html
+  - templates/reports/children_served.html
+  - templates/reports/dashboard.html
+  - templates/reports/month_added_report.html
+  - templates/reports/site_visit_summary.html
+  - templates/reports/staff_site_visits.html
+  - templates/reports/staff_summary.html
+  - templates/reports/visits_report.html
+  - upgrade.sh
+
+Installation Instructions:
+-------------------------
+1. Extract this package:
+   tar -xzf iss-portal-v1.0.0.tar.gz
+
+2. Navigate to extracted directory:
+   cd iss-portal-v1.0.0
+
+3. Copy env.example to .env and configure:
+   cp env.example .env
+   nano .env
+
+4. Run the deployment script:
+   chmod +x deploy.sh
+   sudo ./deploy.sh
+
+5. Access the application:
+   http://your-server-ip
+
+For detailed instructions, see DEPLOYMENT.md
+
+Requirements:
+------------
+- Docker Engine 20.10 or later
+- Docker Compose 2.0 or later
+- 2GB RAM minimum (4GB recommended)
+- 20GB disk space minimum
+- Ubuntu 20.04/22.04 or similar Linux distribution
+
+Support:
+--------
+For issues or questions, refer to:
+- DEPLOYMENT.md - Comprehensive deployment guide
+- README.md - Application overview and quick start
+- PROJECT_STATUS.md - Current implementation status
+
+Security Notes:
+--------------
+- Change all default passwords in .env file
+- Generate new SECRET_KEY and FIELD_ENCRYPTION_KEY
+- Configure firewall rules appropriately
+- Enable SSL/HTTPS for production (see DEPLOYMENT.md)
+- Regularly backup encryption keys (stored in .env)
+
+================================================================================

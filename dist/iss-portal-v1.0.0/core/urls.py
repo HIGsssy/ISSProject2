@@ -9,6 +9,9 @@ urlpatterns = [
     path('my-caseload/', views.my_caseload, name='my_caseload'),
     path('children/', views.all_children, name='all_children'),
     path('children/add/', views.add_child, name='add_child'),
+    path('children/import/', views.import_children, name='import_children'),
+    path('children/import/preview/', views.import_children_preview, name='import_children_preview'),
+    path('children/import/template/', views.download_children_template, name='download_children_template'),
     path('children/non-caseload/', views.non_caseload_children, name='non_caseload_children'),
     path('children/<int:pk>/', views.child_detail, name='child_detail'),
     path('children/<int:pk>/edit/', views.edit_child, name='edit_child'),
@@ -20,7 +23,9 @@ urlpatterns = [
     path('community-partners/', views.community_partners, name='community_partners'),
     path('community-partners/add/', views.add_community_partner, name='add_community_partner'),
     path('community-partners/<int:pk>/edit/', views.edit_community_partner, name='edit_community_partner'),
-    path('referrals/', views.referrals_management, name='referrals_management'),
-    path('referrals/add/<int:child_pk>/', views.add_referral, name='add_referral'),
-    path('referrals/<int:pk>/edit/', views.edit_referral, name='edit_referral'),
+    
+    # Referrals temporarily disabled
+    # path('referrals/', views.referrals_management, name='referrals_management'),
+    # path('referrals/add/<int:child_pk>/', views.add_referral, name='add_referral'),
+    # path('referrals/<int:pk>/edit/', views.edit_referral, name='edit_referral'),
 ]

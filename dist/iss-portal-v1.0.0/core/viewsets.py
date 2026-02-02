@@ -58,7 +58,7 @@ class ChildViewSet(viewsets.ModelViewSet):
     
     queryset = Child.objects.select_related('centre', 'created_by', 'updated_by').prefetch_related('caseload_assignments')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'centre']
+    filterset_fields = ['overall_status', 'caseload_status', 'on_hold', 'centre']
     search_fields = ['first_name', 'last_name', 'guardian1_name']
     ordering_fields = ['last_name', 'first_name', 'date_of_birth', 'created_at']
     ordering = ['last_name', 'first_name']
@@ -96,11 +96,12 @@ class ChildViewSet(viewsets.ModelViewSet):
         if hasattr(user, 'role') and user.role in ['supervisor', 'admin']:
             return Response({'detail': 'Supervisors and admins do not have caseloads.'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Get children from caseload assignments (primary or secondary)
+        # Get children from caseload assignments
         children = Child.objects.filter(
             caseload_assignments__staff=user,
             caseload_assignments__unassigned_at__isnull=True,
-            status__in=['active', 'on_hold']  # Exclude discharged and non-caseload
+            overall_status='active',
+            caseload_status='caseload'
         ).distinct()
         
         serializer = ChildListSerializer(children, many=True)
@@ -109,7 +110,10 @@ class ChildViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def non_caseload(self, request):
         """Get all non-caseload children."""
-        children = self.queryset.filter(status='non_caseload')
+        children = self.queryset.filter(
+            overall_status='active',
+            caseload_status='non_caseload'
+        )
         serializer = ChildListSerializer(children, many=True)
         return Response(serializer.data)
     

@@ -2,7 +2,7 @@
 
 {% block title %}Add Child - Multi-Step Intake{% endblock %}
 
-{% block extra_head %}
+{% block extra_css %}
 <style>
     .step-circle {
         width: 36px;
@@ -36,11 +36,11 @@
     }
     
     .form-step {
-        display: none !important;
+        display: none;
     }
     
     .form-step.active {
-        display: block !important;
+        display: block;
     }
 </style>
 {% endblock %}
@@ -791,19 +791,10 @@ document.getElementById('intakeForm').addEventListener('submit', async function(
             const result = await response.json();
             window.location.href = `/children/${result.id}/`;
         } else {
-            // Try to parse as JSON, fallback to text if it fails
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const errorData = await response.json();
-                alert('Error creating child record: ' + JSON.stringify(errorData));
-            } else {
-                const errorText = await response.text();
-                console.error('Server error:', errorText);
-                alert('Server error occurred. Please check the console for details or contact an administrator.');
-            }
+            const errorData = await response.json();
+            alert('Error creating child record: ' + JSON.stringify(errorData));
         }
     } catch (error) {
-        console.error('Request error:', error);
         alert('Error creating child record: ' + error.message);
     }
 });

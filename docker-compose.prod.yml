@@ -1,0 +1,163 @@
+version: '3.8'
+
+################################################################################
+# ISS Portal - Production Docker Compose Configuration
+#
+# This file extends docker-compose.yml with production-specific settings.
+# 
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Features:
+#   - Enhanced logging with rotation
+#   - Resource limits for stability
+#   - Security hardening
+#   - Production-optimized settings
+################################################################################
+
+services:
+  db:
+    # Production logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Enhanced restart policy
+    restart: always
+    
+    # Security: Don't expose database port to host
+    ports: []
+    
+    # Production health check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iss_user}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    # Production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        compress: "true"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Enhanced restart policy
+    restart: always
+    
+    # Don't expose web port directly to host (use nginx)
+    ports: []
+    
+    # Production Gunicorn command with tuned settings
+    command: >
+      gunicorn 
+      --bind 0.0.0.0:8000
+      --workers 4
+      --threads 2
+      --worker-class gthread
+      --worker-tmp-dir /dev/shm
+      --timeout 120
+      --graceful-timeout 30
+      --keep-alive 5
+      --max-requests 1000
+      --max-requests-jitter 50
+      --access-logfile -
+      --error-logfile -
+      --log-level info
+      iss_portal.wsgi:application
+    
+    # Production health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Environment overrides for production
+    environment:
+      - DJANGO_SETTINGS_MODULE=iss_portal.settings
+      - PYTHONUNBUFFERED=1
+      - GUNICORN_CMD_ARGS=--access-logformat '%({x-forwarded-for}i)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
+
+  nginx:
+    # Production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        compress: "true"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    # Enhanced restart policy
+    restart: always
+    
+    # Production health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/admin/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # Security labels (optional - for monitoring/management)
+    labels:
+      - "com.iss-portal.service=nginx"
+      - "com.iss-portal.environment=production"
+
+# Production volume configuration
+volumes:
+  iss_postgres_data:
+    name: iss_postgres_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/iss-portal/data
+
+# Production network configuration
+networks:
+  iss_network:
+    name: iss_network
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iss-portal
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

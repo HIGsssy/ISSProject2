@@ -1,0 +1,58 @@
+================================================================================
+ISS Portal - Release Notes
+================================================================================
+
+Version: 1.0.0
+Release Date: 2026-02-02
+
+Package Details:
+--------------
+File: iss-portal-v1.0.0.tar.gz
+Size: 124K
+SHA256: 8462fb0492dfba7a9619121474b803431cbc5aed6c63a5c8257af0a902c96ba5
+
+What's Included:
+---------------
+- Complete Django application with all apps
+- Docker and Docker Compose configuration
+- Nginx reverse proxy configuration
+- Database migration scripts
+- Deployment and management scripts
+- Comprehensive documentation
+- Systemd service file for auto-start
+
+System Requirements:
+-------------------
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+- Linux server (Ubuntu 20.04/22.04 recommended)
+- 2GB RAM minimum (4GB recommended)
+- 20GB disk space minimum
+- PostgreSQL 15 (included in Docker)
+
+Quick Start:
+-----------
+1. Extract: tar -xzf iss-portal-v1.0.0.tar.gz
+2. Configure: cd iss-portal-v1.0.0 && cp env.example .env && nano .env
+3. Install: ./install.sh
+4. Access: http://your-server-ip
+
+For detailed instructions, see DEPLOYMENT.md inside the package.
+
+Security Considerations:
+-----------------------
+- Change all default passwords
+- Generate new SECRET_KEY
+- Generate new FIELD_ENCRYPTION_KEY
+- Configure firewall appropriately
+- Enable HTTPS for production
+- Review and update .env file completely
+
+Support:
+--------
+For issues, refer to documentation in the package:
+- DEPLOYMENT.md - Full deployment guide
+- README.md - Application overview
+- MANIFEST.txt - Complete file listing
+
+================================================================================

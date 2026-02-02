@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Month Added Report - ISS Portal{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Month Added Report</h1>
+                <p class="mt-2 text-sm text-gray-600">Children intake volume by month</p>
+            </div>
+            <a href="{% url 'reports:dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                ← Back to Reports
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Filters</h3>
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[150px]">
+                <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                <select name="year" id="year" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    {% for year_opt in year_options %}
+                        <option value="{{ year_opt }}" {% if year == year_opt %}selected{% endif %}>
+                            {{ year_opt }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label for="centre" class="block text-sm font-medium text-gray-700 mb-1">Centre</label>
+                <select name="centre" id="centre" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">All Centres</option>
+                    {% for centre in centres %}
+                        <option value="{{ centre.id }}" {% if selected_centre == centre.id|stringformat:"s" %}selected{% endif %}>
+                            {{ centre.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Apply Filters
+                </button>
+                <a href="?export=csv&year={{ year }}{% if selected_centre %}&centre={{ selected_centre }}{% endif %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Export CSV
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary -->
+    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mb-6">
+        <div class="flex items-center">
+            <svg class="h-8 w-8 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <div>
+                <h2 class="text-2xl font-bold text-indigo-900">{{ total_year }}</h2>
+                <span class="text-indigo-700">children added in {{ year }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Chart -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Monthly Intake Volume</h3>
+        <div class="space-y-4">
+            {% for month_data in monthly_data %}
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">{{ month_data.month }}</span>
+                        <div class="flex gap-4">
+                            <span class="text-sm text-gray-600">New: <strong>{{ month_data.count }}</strong></span>
+                            <span class="text-sm text-gray-600">Cumulative: <strong>{{ month_data.cumulative }}</strong></span>
+                        </div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        {% widthratio month_data.count total_year 100 as percentage %}
+                        <div class="bg-indigo-600 h-4 rounded-full transition-all" style="width: {% if total_year > 0 %}{{ percentage }}%{% else %}0%{% endif %}"></div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Monthly Table -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Monthly Breakdown</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New Children</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cumulative</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% of Year</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for month_data in monthly_data %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {{ month_data.month }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ month_data.count }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ month_data.cumulative }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if total_year > 0 %}
+                                    {% widthratio month_data.count total_year 100 %}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="bg-gray-50 font-bold">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            Total {{ year }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ total_year }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            —
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            100%
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
