@@ -38,12 +38,6 @@ HTML_FORM = """
     
     <form method="POST">
         <div class="form-group">
-            <label>Database Password *</label>
-            <input type="password" name="db_password" required>
-            <div class="help-text">Choose a strong password for the PostgreSQL database</div>
-        </div>
-        
-        <div class="form-group">
             <label>Allowed Hosts (optional)</label>
             <input type="text" name="allowed_hosts" placeholder="localhost,your-domain.com">
             <div class="help-text">Comma-separated list of domains. Leave blank to allow all (*)</div>
@@ -60,7 +54,7 @@ HTML_FORM = """
     
     <p style="margin-top: 30px; font-size: 12px; color: #666;">
         Security keys will be automatically generated.<br>
-        Database name: iss_portal_db | Database user: iss_user
+        Database credentials are pre-configured.
     </p>
 </body>
 </html>
@@ -127,23 +121,17 @@ class SetupHandler(BaseHTTPRequestHandler):
         params = parse_qs(post_data)
         
         # Extract values
-        db_password = params.get('db_password', [''])[0]
         allowed_hosts = params.get('allowed_hosts', ['*'])[0].strip() or '*'
         timezone = params.get('timezone', ['America/Toronto'])[0].strip() or 'America/Toronto'
-        
-        if not db_password:
-            self.send_response(400)
-            self.end_headers()
-            self.wfile.write(b"Database password is required")
-            return
         
         # Generate keys
         secret_key = secrets.token_urlsafe(50)
         fernet_key = Fernet.generate_key().decode()
         
-        # Database defaults
-        db_name = os.environ.get('POSTGRES_DB', 'iss_portal_db')
-        db_user = os.environ.get('POSTGRES_USER', 'iss_user')
+        # Fixed database credentials (must match docker-compose.hub.yml)
+        db_name = 'iss_portal_db'
+        db_user = 'iss_user'
+        db_password = 'kN8mP4xR9vL2wQ7jT5nC6hB3fY1sD0aE'
         
         # Create .env file
         env_content = f"""SECRET_KEY={secret_key}
@@ -160,9 +148,6 @@ TIME_ZONE={timezone}
         env_path = Path('/app/.env')
         env_path.write_text(env_content)
         env_path.chmod(0o600)
-        
-        # Create marker file for entrypoint to initialize DB user
-        Path('/app/.env.firstrun').touch()
         
         print("✓ Configuration saved to /app/.env")
         print("✓ Setup complete!")
