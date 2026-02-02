@@ -1,5 +1,16 @@
 version: '3.8'
 
+################################################################################
+# ISS Portal - Docker Hub Deployment Configuration
+#
+# This file is used to deploy ISS Portal using pre-built images from Docker Hub
+# instead of building locally.
+#
+# Usage:
+#   docker-compose -f docker-compose.hub.yml up -d
+#
+################################################################################
+
 services:
   # PostgreSQL Database
   db:
@@ -11,8 +22,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
     volumes:
       - iss_postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iss_user}"]
       interval: 10s
@@ -22,18 +31,14 @@ services:
     networks:
       - iss_network
 
-  # Django Web Application
+  # Django Web Application (from Docker Hub)
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: hgisssy/iss-portal:latest
     container_name: iss_portal_web
     command: gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 60 --access-logfile - --error-logfile - iss_portal.wsgi:application
     volumes:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
-    ports:
-      - "8000:8000"
     env_file:
       - .env
     depends_on:
@@ -62,25 +67,11 @@ services:
       - ./staticfiles:/app/staticfiles:ro
       - ./media:/app/media:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-      # For Let's Encrypt (production)
-      # - ./nginx/certbot/conf:/etc/letsencrypt:ro
-      # - ./nginx/certbot/www:/var/www/certbot:ro
     depends_on:
       - web
     networks:
       - iss_network
     restart: unless-stopped
-
-  # Certbot for Let's Encrypt (uncomment for production)
-  # certbot:
-  #   image: certbot/certbot
-  #   container_name: iss_portal_certbot
-  #   volumes:
-  #     - ./nginx/certbot/conf:/etc/letsencrypt
-  #     - ./nginx/certbot/www:/var/www/certbot
-  #   entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-  #   networks:
-  #     - iss_network
 
 volumes:
   iss_postgres_data:

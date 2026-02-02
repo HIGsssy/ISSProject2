@@ -2,6 +2,21 @@
 
 This package contains everything needed to deploy the ISS Portal application in a production environment using Docker.
 
+## Deployment Options
+
+**Option 1: Docker Hub (Recommended for Production)**
+- Pull pre-built images from Docker Hub
+- Fastest deployment (~2 minutes)
+- No build time required
+- Smaller download size
+- See [DOCKERHUB_DEPLOYMENT.md](DOCKERHUB_DEPLOYMENT.md)
+
+**Option 2: Local Build (Development/Customization)**
+- Build images locally from source
+- Full control and customization
+- No internet required after package download
+- This guide covers local build deployment
+
 ## What's Included
 
 - ✅ Complete Django application (all modules and dependencies)

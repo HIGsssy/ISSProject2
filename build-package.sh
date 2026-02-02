@@ -80,6 +80,17 @@ cp Dockerfile "$BUILD_DIR/"
 cp docker-entrypoint.sh "$BUILD_DIR/"
 cp .dockerignore "$BUILD_DIR/"
 
+# Docker Hub deployment files (if they exist)
+if [ -f "docker-compose.hub.yml" ]; then
+    cp docker-compose.hub.yml "$BUILD_DIR/"
+    log_info "Added docker-compose.hub.yml for Docker Hub deployment"
+fi
+
+if [ -f "DOCKERHUB_DEPLOYMENT.md" ]; then
+    cp DOCKERHUB_DEPLOYMENT.md "$BUILD_DIR/"
+    log_info "Added Docker Hub deployment guide"
+fi
+
 # Python dependencies
 cp requirements.txt "$BUILD_DIR/"
 cp manage.py "$BUILD_DIR/"
