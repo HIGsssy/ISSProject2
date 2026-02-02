@@ -10,6 +10,9 @@ if [ ! -f "/app/.env" ] || [ ! -s "/app/.env" ] || ! grep -q "FIELD_ENCRYPTION_K
     echo "No configuration found. Starting interactive setup..."
     echo ""
     
+    # Generate a temporary but valid Fernet key
+    TEMP_FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    
     # Create minimal .env file to allow Django to start
     cat > /app/.env << EOF
 SECRET_KEY=temporary-key-for-setup
@@ -19,7 +22,7 @@ POSTGRES_DB=${POSTGRES_DB:-iss_portal_db}
 POSTGRES_USER=${POSTGRES_USER:-iss_user}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
 DATABASE_URL=postgresql://${POSTGRES_USER:-iss_user}:${POSTGRES_PASSWORD:-change-this-password}@db:5432/${POSTGRES_DB:-iss_portal_db}
-FIELD_ENCRYPTION_KEY=temporary-key-for-setup-12345678901234567890123456789012
+FIELD_ENCRYPTION_KEY=$TEMP_FERNET_KEY
 TIME_ZONE=America/Toronto
 EOF
     
