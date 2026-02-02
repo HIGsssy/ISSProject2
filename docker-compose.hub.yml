@@ -17,13 +17,11 @@ services:
     image: postgres:15-alpine
     container_name: iss_portal_db
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-iss_portal_db}
-      - POSTGRES_USER=${POSTGRES_USER:-iss_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     volumes:
       - iss_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iss_user}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
