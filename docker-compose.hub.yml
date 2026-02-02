@@ -43,7 +43,7 @@ services:
     volumes:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
-      - ./.env:/app/.env  # Mount .env file for persistence
+
     depends_on:
       db:
         condition: service_healthy

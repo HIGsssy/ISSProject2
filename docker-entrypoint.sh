@@ -10,7 +10,20 @@ if [ ! -f "/app/.env" ] || [ ! -s "/app/.env" ] || ! grep -q "FIELD_ENCRYPTION_K
     echo "No configuration found. Starting interactive setup..."
     echo ""
     
-    # Run interactive setup
+    # Create minimal .env file to allow Django to start
+    cat > /app/.env << EOF
+SECRET_KEY=temporary-key-for-setup
+DEBUG=False
+ALLOWED_HOSTS=localhost
+POSTGRES_DB=${POSTGRES_DB:-iss_portal_db}
+POSTGRES_USER=${POSTGRES_USER:-iss_user}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
+DATABASE_URL=postgresql://${POSTGRES_USER:-iss_user}:${POSTGRES_PASSWORD:-change-this-password}@db:5432/${POSTGRES_DB:-iss_portal_db}
+FIELD_ENCRYPTION_KEY=temporary-key-for-setup-12345678901234567890123456789012
+TIME_ZONE=America/Toronto
+EOF
+    
+    # Run interactive setup to get real values
     python manage.py interactive_setup
     
     echo ""
