@@ -27,14 +27,26 @@ class ChildCSVImporter:
     
     Optional fields:
     - address_line1, address_line2, city, province, postal_code
-    - guardian1_name, guardian1_phone, guardian1_email
-    - guardian2_name, guardian2_phone, guardian2_email
+    - alternate_location
+    - guardian1_name, guardian1_home_phone, guardian1_work_phone, guardian1_cell_phone, guardian1_email
+    - guardian2_name, guardian2_home_phone, guardian2_work_phone, guardian2_cell_phone, guardian2_email
     - centre (centre name)
     - start_date (YYYY-MM-DD, defaults to today)
     - end_date (YYYY-MM-DD, for discharged children)
     - discharge_reason (for discharged children)
     - notes
     - on_hold (true/false, defaults to false)
+    - referral_source_type (parent_guardian/other_agency)
+    - referral_source_name, referral_source_phone
+    - referral_agency_name, referral_agency_address
+    - referral_reason_cognitive, referral_reason_language, referral_reason_gross_motor,
+      referral_reason_fine_motor, referral_reason_social_emotional, referral_reason_self_help,
+      referral_reason_other (all true/false)
+    - referral_reason_details
+    - attends_childcare (true/false), childcare_centre (centre name), childcare_frequency
+    - attends_earlyon (true/false), earlyon_centre (centre name), earlyon_frequency
+    - agency_continuing_involvement (true/false)
+    - referral_consent_on_file (true/false)
     
     Note: All imported children default to 'active' overall_status and
     'awaiting_assignment' caseload_status. Discharge should be done through
@@ -44,9 +56,18 @@ class ChildCSVImporter:
     REQUIRED_FIELDS = ['first_name', 'last_name', 'date_of_birth']
     OPTIONAL_FIELDS = [
         'address_line1', 'address_line2', 'city', 'province', 'postal_code',
-        'guardian1_name', 'guardian1_phone', 'guardian1_email',
-        'guardian2_name', 'guardian2_phone', 'guardian2_email',
-        'centre', 'start_date', 'end_date', 'discharge_reason', 'notes', 'on_hold'
+        'alternate_location',
+        'guardian1_name', 'guardian1_home_phone', 'guardian1_work_phone', 'guardian1_cell_phone', 'guardian1_email',
+        'guardian2_name', 'guardian2_home_phone', 'guardian2_work_phone', 'guardian2_cell_phone', 'guardian2_email',
+        'centre', 'start_date', 'end_date', 'discharge_reason', 'notes', 'on_hold',
+        'referral_source_type', 'referral_source_name', 'referral_source_phone',
+        'referral_agency_name', 'referral_agency_address',
+        'referral_reason_cognitive', 'referral_reason_language', 'referral_reason_gross_motor',
+        'referral_reason_fine_motor', 'referral_reason_social_emotional', 'referral_reason_self_help',
+        'referral_reason_other', 'referral_reason_details',
+        'attends_childcare', 'childcare_centre', 'childcare_frequency',
+        'attends_earlyon', 'earlyon_centre', 'earlyon_frequency',
+        'agency_continuing_involvement', 'referral_consent_on_file'
     ]
     
     def __init__(self, csv_file, user):
@@ -154,12 +175,22 @@ class ChildCSVImporter:
         except ValueError:
             errors.append("date_of_birth must be in YYYY-MM-DD format")
         
-        # Parse on_hold field
-        on_hold_val = row.get('on_hold', '').strip().lower()
-        if on_hold_val in ['true', '1', 'yes']:
-            data['on_hold'] = True
-        else:
-            data['on_hold'] = False
+        # Parse boolean fields
+        boolean_fields = [
+            'on_hold', 'referral_reason_cognitive', 'referral_reason_language',
+            'referral_reason_gross_motor', 'referral_reason_fine_motor',
+            'referral_reason_social_emotional', 'referral_reason_self_help',
+            'referral_reason_other', 'attends_childcare', 'attends_earlyon',
+            'agency_continuing_involvement', 'referral_consent_on_file'
+        ]
+        for field in boolean_fields:
+            value = row.get(field, '').strip().lower()
+            if value in ['true', '1', 'yes', 'y']:
+                data[field] = True
+            elif value in ['false', '0', 'no', 'n', '']:
+                data[field] = False if value else False
+            else:
+                errors.append(f"{field} must be true/false/yes/no/1/0")
         
         # Validate centre if provided
         centre_name = row.get('centre', '').strip()
@@ -169,6 +200,24 @@ class ChildCSVImporter:
                 data['centre'] = centre
             else:
                 errors.append(f"Centre '{centre_name}' not found")
+        
+        # Validate childcare_centre if provided
+        childcare_centre_name = row.get('childcare_centre', '').strip()
+        if childcare_centre_name:
+            childcare_centre = self._lookup_centre(childcare_centre_name)
+            if childcare_centre:
+                data['childcare_centre'] = childcare_centre
+            else:
+                errors.append(f"Childcare centre '{childcare_centre_name}' not found")
+        
+        # Validate earlyon_centre if provided
+        earlyon_centre_name = row.get('earlyon_centre', '').strip()
+        if earlyon_centre_name:
+            earlyon_centre = self._lookup_centre(earlyon_centre_name)
+            if earlyon_centre:
+                data['earlyon_centre'] = earlyon_centre
+            else:
+                errors.append(f"EarlyON centre '{earlyon_centre_name}' not found")
         
         # Validate start_date if provided
         start_date = row.get('start_date', '').strip()
@@ -186,6 +235,14 @@ class ChildCSVImporter:
             except ValueError:
                 errors.append("end_date must be in YYYY-MM-DD format")
         
+        # Validate referral_source_type if provided
+        ref_type = row.get('referral_source_type', '').strip().lower()
+        if ref_type:
+            if ref_type in ['parent_guardian', 'other_agency']:
+                data['referral_source_type'] = ref_type
+            else:
+                errors.append("referral_source_type must be 'parent_guardian' or 'other_agency'")
+        
         # Validate email fields if provided
         for email_field in ['guardian1_email', 'guardian2_email']:
             email = row.get(email_field, '').strip()
@@ -197,9 +254,18 @@ class ChildCSVImporter:
                     errors.append(f"{email_field} is not a valid email address")
         
         # Copy optional text fields
-        for field in ['address_line1', 'address_line2', 'city', 'province', 'postal_code',
-                      'guardian1_name', 'guardian1_phone', 'guardian2_name', 'guardian2_phone',
-                      'discharge_reason', 'notes']:
+        text_fields = [
+            'address_line1', 'address_line2', 'city', 'province', 'postal_code',
+            'alternate_location',
+            'guardian1_name', 'guardian1_home_phone', 'guardian1_work_phone', 'guardian1_cell_phone',
+            'guardian2_name', 'guardian2_home_phone', 'guardian2_work_phone', 'guardian2_cell_phone',
+            'discharge_reason', 'notes',
+            'referral_source_name', 'referral_source_phone',
+            'referral_agency_name', 'referral_agency_address',
+            'referral_reason_details',
+            'childcare_frequency', 'earlyon_frequency'
+        ]
+        for field in text_fields:
             value = row.get(field, '').strip()
             if value:
                 data[field] = value
@@ -305,19 +371,59 @@ class ChildCSVImporter:
                     updated_by=self.user
                 )
                 
-                # Set optional fields
+                # Set optional FK fields
                 if 'centre' in data:
                     child.centre = data['centre']
+                if 'childcare_centre' in data:
+                    child.childcare_centre = data['childcare_centre']
+                if 'earlyon_centre' in data:
+                    child.earlyon_centre = data['earlyon_centre']
+                    
+                # Set date fields
                 if 'start_date' in data:
                     child.start_date = data['start_date']
                 if 'end_date' in data:
                     child.end_date = data['end_date']
                 
-                # Set optional text fields
-                for field in ['address_line1', 'address_line2', 'city', 'province', 'postal_code',
-                              'guardian1_name', 'guardian1_phone', 'guardian1_email',
-                              'guardian2_name', 'guardian2_phone', 'guardian2_email',
-                              'discharge_reason', 'notes']:
+                # Set address fields
+                for field in ['address_line1', 'address_line2', 'city', 'province', 'postal_code', 'alternate_location']:
+                    if field in data:
+                        setattr(child, field, data[field])
+                
+                # Set guardian 1 fields
+                for field in ['guardian1_name', 'guardian1_home_phone', 'guardian1_work_phone', 
+                              'guardian1_cell_phone', 'guardian1_email']:
+                    if field in data:
+                        setattr(child, field, data[field])
+                
+                # Set guardian 2 fields
+                for field in ['guardian2_name', 'guardian2_home_phone', 'guardian2_work_phone',
+                              'guardian2_cell_phone', 'guardian2_email']:
+                    if field in data:
+                        setattr(child, field, data[field])
+                
+                # Set referral fields
+                referral_fields = [
+                    'referral_source_type', 'referral_source_name', 'referral_source_phone',
+                    'referral_agency_name', 'referral_agency_address',
+                    'referral_reason_cognitive', 'referral_reason_language',
+                    'referral_reason_gross_motor', 'referral_reason_fine_motor',
+                    'referral_reason_social_emotional', 'referral_reason_self_help',
+                    'referral_reason_other', 'referral_reason_details',
+                    'agency_continuing_involvement', 'referral_consent_on_file'
+                ]
+                for field in referral_fields:
+                    if field in data:
+                        setattr(child, field, data[field])
+                
+                # Set program attendance fields
+                for field in ['attends_childcare', 'childcare_frequency', 
+                              'attends_earlyon', 'earlyon_frequency']:
+                    if field in data:
+                        setattr(child, field, data[field])
+                
+                # Set other fields
+                for field in ['discharge_reason', 'notes']:
                     if field in data:
                         setattr(child, field, data[field])
                 
@@ -347,29 +453,84 @@ class ChildCSVImporter:
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Write headers
+        # Write headers - split into logical groups for readability
         headers = [
+            # Required
             'first_name', 'last_name', 'date_of_birth',
-            'centre', 'guardian1_name', 'guardian1_phone', 'guardian1_email',
-            'guardian2_name', 'guardian2_phone', 'guardian2_email',
-            'address_line1', 'address_line2', 'city', 'province', 'postal_code',
-            'start_date', 'on_hold', 'notes'
+            # Centre assignment
+            'centre', 'start_date', 'on_hold',
+            # Address
+            'address_line1', 'address_line2', 'city', 'province', 'postal_code', 'alternate_location',
+            # Guardian 1
+            'guardian1_name', 'guardian1_home_phone', 'guardian1_work_phone', 'guardian1_cell_phone', 'guardian1_email',
+            # Guardian 2
+            'guardian2_name', 'guardian2_home_phone', 'guardian2_work_phone', 'guardian2_cell_phone', 'guardian2_email',
+            # Referral source
+            'referral_source_type', 'referral_source_name', 'referral_source_phone',
+            'referral_agency_name', 'referral_agency_address',
+            # Referral reasons (true/false)
+            'referral_reason_cognitive', 'referral_reason_language', 'referral_reason_gross_motor',
+            'referral_reason_fine_motor', 'referral_reason_social_emotional', 'referral_reason_self_help',
+            'referral_reason_other', 'referral_reason_details',
+            # Program attendance
+            'attends_childcare', 'childcare_centre', 'childcare_frequency',
+            'attends_earlyon', 'earlyon_centre', 'earlyon_frequency',
+            # Referral details
+            'agency_continuing_involvement', 'referral_consent_on_file',
+            # Other
+            'notes'
         ]
         writer.writerow(headers)
         
-        # Write example rows
-        examples = [
-            ['John', 'Smith', '2015-03-15', 'Main Centre', 'Sarah Smith', '416-555-0123', 
-             'sarah@example.com', '', '', '', '123 Main St', '', 'Toronto', 'ON', 'M1A 1A1', 
-             '2024-01-01', 'false', 'New admission'],
-            ['Jane', 'Doe', '2016-07-22', '', 'John Doe', '647-555-0456', 'john@example.com',
-             'Mary Doe', '647-555-0789', 'mary@example.com', '456 Oak Ave', 'Unit 10', 'Mississauga', 
-             'ON', 'L5A 1B2', '', 'false', ''],
-            ['Tim', 'Wilson', '2014-11-30', '', 'Lisa Wilson', '905-555-0111', '', '', '', '',
-             '', '', '', 'ON', '', '2023-06-01', 'true', 'On hold temporarily'],
+        # Write example row 1 - minimal data (required fields only)
+        example1 = [
+            'John', 'Smith', '2015-03-15',  # Required
+            '', '', 'false',  # Centre assignment
+            '', '', '', '', '', '',  # Address
+            '', '', '', '', '',  # Guardian 1
+            '', '', '', '', '',  # Guardian 2
+            '', '', '',  # Referral source
+            '', '',  # Referral agency
+            'false', 'false', 'false', 'false', 'false', 'false', 'false', '',  # Referral reasons
+            'false', '', '',  # Childcare
+            'false', '', '',  # EarlyON
+            'false', 'false',  # Referral details
+            ''  # Notes
         ]
+        writer.writerow(example1)
         
-        for example in examples:
-            writer.writerow(example)
+        # Write example row 2 - parent/guardian referral with basic info
+        example2 = [
+            'Jane', 'Doe', '2016-07-22',  # Required
+            'Main Centre', '2024-01-01', 'false',  # Centre assignment
+            '456 Oak Ave', 'Unit 10', 'Toronto', 'ON', 'M1A 1A1', '',  # Address
+            'John Doe', '416-555-0100', '416-555-0101', '647-555-0102', 'john@example.com',  # Guardian 1
+            'Mary Doe', '', '416-555-0200', '647-555-0201', 'mary@example.com',  # Guardian 2
+            'parent_guardian', 'John Doe', '647-555-0102',  # Referral source
+            '', '',  # Referral agency
+            'true', 'true', 'false', 'false', 'false', 'false', 'false', 'Concerns with speech development',  # Referral reasons
+            'true', 'ABC Childcare', 'Full-time',  # Childcare
+            'false', '', '',  # EarlyON
+            'false', 'true',  # Referral details
+            'Parent referred'  # Notes
+        ]
+        writer.writerow(example2)
+        
+        # Write example row 3 - agency referral with full details
+        example3 = [
+            'Tim', 'Wilson', '2014-11-30',  # Required
+            '', '2023-06-01', 'false',  # Centre assignment
+            '789 Pine Street', '', 'Mississauga', 'ON', 'L5A 2B3', 'Lives with grandmother at same address',  # Address
+            'Lisa Wilson', '905-555-0300', '', '905-555-0301', 'lisa@example.com',  # Guardian 1
+            '', '', '', '', '',  # Guardian 2
+            'other_agency', 'Dr. Sarah Johnson', '416-555-4000',  # Referral source
+            'Community Health Services', '100 Medical Drive, Toronto ON',  # Referral agency
+            'false', 'false', 'true', 'true', 'true', 'false', 'false', 'Motor skills and social/emotional development concerns',  # Referral reasons
+            'false', '', '',  # Childcare
+            'true', 'Downtown EarlyON', 'Weekly',  # EarlyON
+            'true', 'true',  # Referral details
+            'Agency continuing follow-up'  # Notes
+        ]
+        writer.writerow(example3)
         
         return output.getvalue()

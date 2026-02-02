@@ -36,13 +36,17 @@
                 <li><strong>first_name:</strong> Child's first name</li>
                 <li><strong>last_name:</strong> Child's last name</li>
                 <li><strong>date_of_birth:</strong> Format: YYYY-MM-DD (e.g., 2015-03-15)</li>
-                <li><strong>status:</strong> One of: active, on_hold, discharged, non_caseload</li>
             </ul>
             
-            <p class="text-sm text-blue-700 font-medium mt-3 mb-2">Optional Fields:</p>
-            <p class="text-sm text-blue-800">
-                Guardian information, address, centre, start/end dates, notes, etc.
-            </p>
+            <p class="text-sm text-blue-700 font-medium mt-3 mb-2">Optional Fields Include:</p>
+            <div class="text-sm text-blue-800 space-y-1">
+                <p><strong>Basic Info:</strong> centre, start_date, address fields, alternate_location</p>
+                <p><strong>Guardian Contact:</strong> guardian1/2 name, home/work/cell phones, email</p>
+                <p><strong>Referral Information:</strong> source type (parent_guardian/other_agency), contact details, agency info</p>
+                <p><strong>Referral Reasons:</strong> cognitive, language, gross_motor, fine_motor, social_emotional, self_help, other (true/false)</p>
+                <p><strong>Program Attendance:</strong> childcare/EarlyON attendance with centre names and frequencies</p>
+                <p class="text-xs italic mt-2">Note: Guardian phones are now split into home_phone, work_phone, and cell_phone for each guardian</p>
+            </div>
         </div>
     </div>
 
