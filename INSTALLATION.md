@@ -2,6 +2,12 @@
 
 **Quick Start:** Get the ISS Portal running in under 5 minutes using Docker.
 
+**Latest Updates (February 4, 2026):**
+- ✅ Production Tailwind CSS compilation (38KB minified, fully featured)
+- ✅ Custom theming system with color picker and logo upload
+- ✅ Centre management with CSV bulk import
+- ✅ All features tested and deployed
+
 ---
 
 ## Prerequisites
@@ -75,9 +81,10 @@ docker-compose up -d --build
 ```
 
 This will:
-- Build the Docker images
+- Build the Docker images with multi-stage CSS compilation
 - Start PostgreSQL database
 - Start Django web application
+- Compile Tailwind CSS (production-ready, 38KB with all utilities)
 - Start Nginx reverse proxy
 - Run database migrations
 - Create initial data (visit types)
@@ -101,6 +108,42 @@ Follow the prompts to create your admin account.
 - Password: `admin123`
 
 **⚠️ IMPORTANT:** Change the default password immediately in production!
+
+---
+
+## New Features Setup
+
+### Custom Theming (February 4, 2026)
+
+After login as superuser, customize your instance:
+
+1. Go to **Admin** → **Core** → **Theme Settings**
+2. Upload your logo (recommended size: 200x100 or 350x200px)
+3. Set brand colors using the native color picker
+4. Customize the site title displayed in the navbar
+5. Set header/navbar background color
+6. Changes apply immediately across the application
+
+**Theme persists in database** - changes survive application restarts.
+
+### Centre Management (February 4, 2026)
+
+**Import centres in bulk:**
+
+1. Go to **Centres** in the navigation menu (visible to all users)
+2. Click **Import Centres** (admin/supervisor only)
+3. Download the template CSV
+4. Fill in centre data:
+   - Required: name, address, city, province, postal code, phone
+   - Optional: address line 2, contact name, email, status, notes
+5. Upload the CSV file
+6. Review the preview (valid and invalid rows shown)
+7. Confirm to import into database
+
+**Centre Information:**
+- All users can view centres and access contact information
+- Import restricted to superusers and admins only
+- All contact information is encrypted for privacy
 
 ---
 

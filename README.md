@@ -10,13 +10,18 @@ A containerized Django application for managing children's inclusion support ser
 - **Caseload Management**: Primary and secondary staff assignments with full history
 - **Reporting**: Comprehensive reports for supervisors and admins with CSV export
 - **Audit Logging**: Complete change tracking for all key entities
-- **Containerized Deployment**: Docker and Docker Compose with nginx reverse proxy
+- **Centre Management**: View centre contact information, bulk import via CSV (admin/supervisor only)
+- **Custom Theming**: Customizable logo, colors, site title, and header styling via admin interface
+- **Production CSS**: Tailwind CSS compiled in production Docker build with full utility classes
+- **Containerized Deployment**: Docker and Docker Compose with nginx reverse proxy, self-configuring setup
 
 ## Technology Stack
 
 - **Backend**: Python 3.11, Django 4.2, Django REST Framework
 - **Database**: PostgreSQL 15
-- **Frontend**: Django Templates with Tailwind CSS
+- **Frontend**: Django Templates with Tailwind CSS 3.4 (production-compiled)
+- **Styling**: Tailwind CSS with custom color picker interface (django-colorfield)
+- **Image Processing**: Pillow for logo and media upload handling
 - **Deployment**: Docker, Docker Compose, Nginx, Gunicorn
 - **Future**: SSO integration ready (M365/Azure AD)
 

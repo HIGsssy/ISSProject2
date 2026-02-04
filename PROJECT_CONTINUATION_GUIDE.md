@@ -1,6 +1,6 @@
 # ISS Portal - Project Continuation Guide
-**Last Updated:** February 2, 2026  
-**Project Status:** Fully Operational - Phase 5 Reporting Complete
+**Last Updated:** February 4, 2026  
+**Project Status:** Fully Operational - Phase 6 Centre Management & Theming Complete
 
 ---
 
@@ -17,24 +17,28 @@
 10. [API Endpoints](#api-endpoints)
 11. [Templates & UI](#templates--ui)
 12. [Docker Configuration](#docker-configuration)
-13. [Recent Bug Fixes](#recent-bug-fixes)
-14. [Testing Checklist](#testing-checklist)
-15. [Known Considerations](#known-considerations)
-16. [Development Commands](#development-commands)
+13. [Custom Theming System](#custom-theming-system)
+14. [Centre Management](#centre-management)
+15. [Recent Bug Fixes](#recent-bug-fixes)
+16. [Testing Checklist](#testing-checklist)
+17. [Known Considerations](#known-considerations)
+18. [Development Commands](#development-commands)
 
 ---
 
 ## Project Overview
 
-**ISS Portal** is a Django-based case management system for child welfare services. It manages children's records, staff caseloads, visits, referrals, and community partnerships.
+**ISS Portal** is a Django-based case management system for child welfare services. It manages children's records, staff caseloads, visits, referrals, community partnerships, centre information, and provides customizable theming for multi-tenant deployments.
 
 ### Primary Use Cases:
 - Child record management with encrypted PII
 - Staff caseload assignment and tracking
 - Visit logging and reporting
 - Referral management to community partners
+- Centre management with CSV bulk import
+- Custom branding and theming per-instance
 - Comprehensive audit logging
-- CSV bulk import capabilities
+- CSV bulk import capabilities (children and centres)
 - Role-based access control
 
 ---
@@ -46,29 +50,90 @@
 - **PostgreSQL 15-alpine** - Database with encryption
 - **Django REST Framework** - API layer
 - **django-encrypted-model-fields** - PII encryption
+- **django-colorfield** - Color picker widgets for admin
 - **Gunicorn** - WSGI server (4 workers)
 
 ### Frontend:
 - **Django Templates** - Server-side rendering
-- **Tailwind CSS** - Utility-first styling
+- **Tailwind CSS 3.4** - Production-compiled, utility-first styling (38KB minified)
 - **Vanilla JavaScript** - Form handling and API calls
+- **Custom theme system** - Branded colors, logos, and site title
 
 ### Infrastructure:
-- **Docker & Docker Compose** - Containerization
+- **Docker & Docker Compose** - Containerization with multi-stage CSS build
+- **Node.js 18-alpine** - Tailwind CSS compilation during Docker build
 - **Nginx** - Reverse proxy and static file serving
 - **Python 3.11-slim** - Base image
 
 ### Deployment:
+- Multi-stage Docker build: CSS compilation → Python application
 - Multi-container setup: web (Django), db (PostgreSQL), nginx
 - Environment-based configuration via .env file
-- Static files served by Nginx
+- Static files served by Nginx with gzip compression
 - Media files stored in persistent volumes
 
 ---
 
 ## Recent Major Changes
 
-### 1. Status System Restructuring (Completed January 23, 2026)
+### 1. Production Tailwind CSS & Theming System (February 4, 2026)
+
+**CSS Production Compilation:**
+- Moved from CDN Tailwind to production-compiled CSS in Docker
+- Multi-stage Docker build with Node.js for CSS compilation
+- **Critical fix**: Copy templates before npm build so Tailwind can scan for classes
+- Result: 38KB minified CSS (up from 16KB missing utilities)
+- Output: style.css served via Nginx, gzipped to 3.7KB
+
+**Custom Theming System:**
+- New `ThemeSetting` model (singleton, pk=1)
+- Fields: 6 colors (ColorField with native picker), 3 image uploads, site_title
+- Admin interface with organized fieldsets: Brand Colors, Status Colors, Header, Images, Text
+- Context processor injects theme into all templates
+- Dynamic CSS variables: `--primary`, `--secondary`, `--accent`, etc.
+- Dynamic logo, site title, header background in navbar
+
+**Packages Added:**
+- `django-colorfield==0.11.0` - HTML5 color picker widgets
+- `Pillow==10.1.0` - Image upload and processing
+
+**Migrations:**
+- `0009_themesetting.py` - ThemeSetting model
+- `0010_alter_themesetting_*.py` - ColorField conversion
+- `0011_themesetting_header_bg_color.py` - Header background
+
+### 2. Centre Management & CSV Import (February 4, 2026)
+
+**Centre Model:**
+- Fields: name, address_line1, address_line2, city, province, postal_code, phone, contact_name, contact_email, status, notes
+- All encrypted for PII protection
+- Status choices: active, inactive
+
+**CSV Import Utility:**
+- `CentreCSVImporter` class in core/utils/csv_import.py (200 lines)
+- Required fields: name, address_line1, city, province, postal_code, phone
+- Optional fields: address_line2, contact_name, contact_email, status, notes
+- Validation: Email format, status choices, required fields
+- Template generation with 3 example rows
+
+**Views & Templates:**
+- `import_centres()` - Upload and validate CSV
+- `import_centres_preview()` - Preview valid/invalid rows
+- `download_centres_template()` - Download example CSV
+- `centre_list()` - View all centres (all users)
+- Templates: import_centres.html, import_centres_preview.html, centre_list.html
+
+**Navigation:**
+- Added "Centres" link to main navigation (desktop and mobile)
+- Removed "Community Partners" link
+- All users can view centre contact information
+- Import button visible only to superusers/admins
+
+**Permissions:**
+- Centre list: viewable by all authenticated users
+- Import functionality: superuser or role == 'admin' only
+
+### 3. Status System Restructuring (Completed January 23, 2026)
 
 **Previous System:** Single `status` field with values: active, on_hold, discharged, non_caseload
 
@@ -95,7 +160,7 @@
 - `static/css/custom.css` - New badge styles
 - All 8 templates in `templates/core/` updated
 
-### 2. CSV Bulk Import Feature (Completed)
+### 4. CSV Bulk Import Feature (Completed)
 - Upload CSV files to bulk create child records
 - Preview before import with validation
 - Error reporting for invalid data
@@ -638,6 +703,101 @@ def update_child_caseload_status_on_delete(sender, instance, **kwargs):
 - Discharge Reason textarea (required)
 - Confirmation warning
 - Sets: overall_status='discharged', caseload_status='non_caseload', on_hold=False
+
+---
+
+## Custom Theming System
+
+### ThemeSetting Model
+Located in `core/models.py`. Singleton pattern (pk=1, prevents deletion).
+
+**Fields:**
+- `primary_color` (ColorField) - Primary brand color
+- `secondary_color` (ColorField) - Secondary accent color  
+- `accent_color` (ColorField) - Accent color for highlights
+- `success_color` (ColorField) - Success status color
+- `warning_color` (ColorField) - Warning status color
+- `danger_color` (ColorField) - Error/danger color
+- `header_bg_color` (ColorField) - Navigation bar background
+- `logo_image` (ImageField) - Logo upload (recommended: 200x100 or 350x200px)
+- `favicon` (ImageField) - Browser tab icon
+- `background_image` (ImageField) - Page background
+- `site_title` (CharField) - Custom site name in navbar
+- `created_at`, `updated_at` (DateTimeField) - Timestamps
+
+**Key Methods:**
+- `get_theme()` - Static method returning singleton instance
+- `save()` - Enforces pk=1, prevents duplicates
+- `delete()` - Overridden to prevent deletion
+
+### Admin Interface
+- Native color picker via django-colorfield
+- Image uploads with preview
+- Organized fieldsets by function
+- Single-instance editing pattern
+
+### Template Integration
+- Logo display in navbar
+- Site title customization
+- Dynamic CSS variable injection
+- Header background color
+
+### Migration History
+- `0009_themesetting.py` - Initial model
+- `0010_alter_themesetting_*.py` - ColorField conversion
+- `0011_themesetting_header_bg_color.py` - Header customization
+
+---
+
+## Centre Management
+
+### Centre Model
+Located in `core/models.py`
+
+**Fields:**
+- `name` - Centre name
+- `address_line1`, `address_line2` - Street addresses (encrypted)
+- `city`, `province`, `postal_code` - Location (encrypted)
+- `phone`, `contact_name`, `contact_email` - Contact info (encrypted)
+- `status` - 'active' or 'inactive'
+- `notes` - Additional information (encrypted)
+
+### CSV Import Utility (CentreCSVImporter)
+Located in `core/utils/csv_import.py`
+
+**Required Fields:** name, address_line1, city, province, postal_code, phone
+**Optional Fields:** address_line2, contact_name, contact_email, status, notes
+
+**Validation:**
+- Email format verification
+- Status choice validation (active/inactive)
+- Whitespace trimming
+- Returns summary with error messages
+
+**Methods:**
+- `parse()` - Read and validate CSV
+- `import_rows()` - Create Centre records
+- `get_import_template()` - Generate example CSV
+
+### Views
+- `centre_list()` - View all centres (all users)
+- `import_centres()` - Upload CSV (admin/supervisor)
+- `import_centres_preview()` - Preview before import
+- `download_centres_template()` - Get example CSV
+
+### Templates
+- `core/centre_list.html` - Centre listing table
+- `core/import_centres.html` - Import form with instructions
+- `core/import_centres_preview.html` - Preview and confirmation
+
+### Navigation Changes
+- Added "Centres" link (all authenticated users)
+- Removed "Community Partners" link
+- Import button visible only to admin/supervisor
+
+### Permissions
+- List: All authenticated users can view
+- Import: superuser or role == 'admin' only
 
 ---
 

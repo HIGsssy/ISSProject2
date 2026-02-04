@@ -1,20 +1,129 @@
 # ISS Portal - Project Status Summary
-**Last Updated: February 4, 2026*
+**Last Updated: February 4, 2026**
 
 ## Project Overview
-Django-based web application for managing children's services with staff caseload management, visit tracking, community partner management, and comprehensive reporting.
+Django-based web application for managing children's services with staff caseload management, visit tracking, centre management, comprehensive reporting, custom theming, and CSV import capabilities.
 
 **Technology Stack:**
 - Django 4.2.9
 - PostgreSQL 15-alpine
-- Docker/Docker Compose
+- Docker/Docker Compose with multi-stage CSS build
 - Python 3.11-slim
 - Nginx reverse proxy
+- Tailwind CSS 3.4 (production-compiled)
 
-## Latest Implementation: Self-Configuring Docker Deployment (February 2, 2026)
+## Latest Implementation: Centre Management & Custom Theming (February 4, 2026)
 
-### Overview
-The ISS Portal Docker image now includes an **interactive self-configuration system** that runs automatically on first launch, making Docker Hub deployment completely automated with push-button simplicity.
+### A. Production Tailwind CSS Compilation
+
+**Problem Solved:**
+- Previous CDN-based Tailwind CSS wasn't production-ready
+- CSS file was only 16KB, missing most utility classes
+- Root cause: Templates weren't available during CSS compilation in Docker
+
+**Solution Implemented:**
+- Multi-stage Docker build with Node.js + Python
+- Stage 1 (Node.js): Compiles Tailwind CSS with template scanning
+- Key fix: Copy templates BEFORE npm build so Tailwind can find class names
+- Stage 2 (Python): Final application container with compiled CSS
+
+**Result:**
+- CSS file: 38KB minified (up from 16KB)
+- All Tailwind utilities available in production
+- HTTP 200 delivery, gzipped to 3.7KB
+- Zero CDN dependency
+
+**Files Modified:**
+- `Dockerfile` - Multi-stage build with template copying before CSS build
+- `package.json`, `tailwind.config.js`, `postcss.config.js` - CSS build configuration
+- `static/css/input.css` - Tailwind @tailwind directives
+- `requirements.txt` - Added Pillow for image processing
+
+### B. Custom Theming System
+
+**Models Created:**
+- `core.models.ThemeSetting` - Singleton model (pk=1) with:
+  - 6 ColorField fields: primary, secondary, accent, success, warning, danger
+  - 3 ImageField uploads: logo_image, favicon, background_image
+  - CharField: site_title (customizable)
+  - DateTimeField: created_at, updated_at
+  - Methods: get_theme() singleton getter, enforced pk=1, prevented deletion
+
+**Admin Interface:**
+- `ThemeAdmin` in core/admin.py with organized fieldsets:
+  1. Brand Colors (primary, secondary, accent)
+  2. Status Colors (success, warning, danger)
+  3. Header/Navbar (header_bg_color)
+  4. Images & Branding (logo, favicon, background)
+  5. Text Customization (site_title)
+  6. Metadata (timestamps, collapsed)
+- Color picker widget: Native HTML5 `<input type="color">` via django-colorfield
+
+**Frontend Integration:**
+- Context processor injects theme_settings into all templates
+- Dynamic CSS variables in base.html: `--primary`, `--secondary`, etc.
+- Logo display: Recommended size 200x100 or 350x200px (horizontal ratio)
+- Header background: Dynamic color via `style` attribute
+- Site title: Display in navbar with fallback to "ISS Portal"
+
+**Packages Added:**
+- `django-colorfield==0.11.0` - Native color picker widgets
+- `Pillow==10.1.0` - Image upload and processing
+
+**Result:**
+- Fully customizable branding per-instance
+- Zero developer intervention for theming
+- Color picker provides superior UX vs. text input
+- All changes persist in database
+
+**Migrations:**
+- `0009_themesetting.py` - Initial ThemeSetting model
+- `0010_alter_themesetting_*.py` - ColorField conversion
+- `0011_themesetting_header_bg_color.py` - Header customization field
+
+### C. Centre Management & CSV Import
+
+**Models:**
+- `Centre` model with fields: name, address_line1, address_line2, city, province, postal_code, phone, contact_name, contact_email, status, notes
+
+**CSV Import Utility:**
+- `CentreCSVImporter` class in core/utils/csv_import.py
+- Required fields: name, address_line1, city, province, postal_code, phone
+- Optional fields: address_line2, contact_name, contact_email, status, notes
+- Validation: Email format verification, status choice validation (active/inactive)
+- Template generation with 3 example rows
+
+**Views:**
+- `import_centres()` - File upload, validation, session storage
+- `import_centres_preview()` - Preview valid/invalid rows, confirmation, import
+- `download_centres_template()` - CSV template generation
+- `centre_list()` - View all centres (all users), import button (admin/supervisor only)
+
+**Templates:**
+- `core/import_centres.html` - Import form with instructions (5-step process)
+- `core/import_centres_preview.html` - Preview with summary stats, valid/invalid rows
+- `core/centre_list.html` - Centre listing with contact information
+
+**Navigation:**
+- Removed "Community Partners" link
+- Added "Centres" link (desktop and mobile nav)
+- Navigation in base.html updated for all user levels
+
+**Permissions:**
+- All authenticated users can view centres and contact information
+- Import button only visible to superusers and admins (user.is_superuser or user.role == 'admin')
+- Import utility checks permission on POST
+
+**Result:**
+- Bulk centre management via CSV
+- Permission-based access control
+- User-friendly preview and confirmation workflow
+- All users can access centre contact information
+
+---
+
+### Overview (Self-Configuring Docker - February 2, 2026)
+The ISS Portal Docker image includes an **interactive self-configuration system** that runs automatically on first launch, making Docker Hub deployment completely automated with push-button simplicity.
 
 ### Dual Distribution Strategy
 
