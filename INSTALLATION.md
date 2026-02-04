@@ -2,6 +2,12 @@
 
 **Quick Start:** Get the ISS Portal running in under 5 minutes using Docker.
 
+**Latest Updates (February 4, 2026):**
+- ✅ Production Tailwind CSS compilation (38KB minified, fully featured)
+- ✅ Custom theming system with color picker and logo upload
+- ✅ Centre management with CSV bulk import
+- ✅ All features tested and deployed
+
 ---
 
 ## Prerequisites
@@ -75,9 +81,10 @@ docker-compose up -d --build
 ```
 
 This will:
-- Build the Docker images
+- Build the Docker images with multi-stage CSS compilation
 - Start PostgreSQL database
 - Start Django web application
+- Compile Tailwind CSS (production-ready, 38KB with all utilities)
 - Start Nginx reverse proxy
 - Run database migrations
 - Create initial data (visit types)
@@ -101,6 +108,42 @@ Follow the prompts to create your admin account.
 - Password: `admin123`
 
 **⚠️ IMPORTANT:** Change the default password immediately in production!
+
+---
+
+## New Features Setup
+
+### Custom Theming (February 4, 2026)
+
+After login as superuser, customize your instance:
+
+1. Go to **Admin** → **Core** → **Theme Settings**
+2. Upload your logo (recommended size: 200x100 or 350x200px)
+3. Set brand colors using the native color picker
+4. Customize the site title displayed in the navbar
+5. Set header/navbar background color
+6. Changes apply immediately across the application
+
+**Theme persists in database** - changes survive application restarts.
+
+### Centre Management (February 4, 2026)
+
+**Import centres in bulk:**
+
+1. Go to **Centres** in the navigation menu (visible to all users)
+2. Click **Import Centres** (admin/supervisor only)
+3. Download the template CSV
+4. Fill in centre data:
+   - Required: name, address, city, province, postal code, phone
+   - Optional: address line 2, contact name, email, status, notes
+5. Upload the CSV file
+6. Review the preview (valid and invalid rows shown)
+7. Confirm to import into database
+
+**Centre Information:**
+- All users can view centres and access contact information
+- Import restricted to superusers and admins only
+- All contact information is encrypted for privacy
 
 ---
 
@@ -288,6 +331,55 @@ docker stats
 
 ---
 
+## Development Setup - Tailwind CSS Building
+
+The application now uses production-grade Tailwind CSS with Node.js for CSS compilation. This is handled automatically in Docker, but for development, you can set up local CSS building.
+
+### Local CSS Development Setup (Optional)
+
+If developing locally outside Docker:
+
+**Prerequisites:**
+- Node.js 18.0 or higher ([download](https://nodejs.org/))
+- npm (included with Node.js)
+
+**Setup:**
+
+1. Install Node.js dependencies:
+```bash
+npm install
+```
+
+2. Build CSS (one-time):
+```bash
+npm run build:css
+```
+
+CSS will be generated to `staticfiles/css/style.css`
+
+3. Watch for changes (during development):
+```bash
+npm run watch:css
+```
+
+The watcher will rebuild CSS whenever you modify `static/css/input.css` or theme colors.
+
+### Using the Theme Rebuild Command
+
+To rebuild CSS after changing theme colors in the admin panel:
+
+```bash
+python manage.py rebuild_theme_css
+```
+
+Or to watch for changes:
+
+```bash
+python manage.py rebuild_theme_css --watch
+```
+
+---
+
 ## Support
 
 For issues or questions:
@@ -297,6 +389,6 @@ For issues or questions:
 
 ---
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Last Updated:** February 4, 2026  
-**Status:** Production Ready
+**Status:** Production Ready - Tailwind CSS Production Build Implemented

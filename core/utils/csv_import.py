@@ -534,3 +534,222 @@ class ChildCSVImporter:
         writer.writerow(example3)
         
         return output.getvalue()
+
+
+class CentreCSVImporter:
+    """
+    Handles CSV import of centre records with validation and encryption.
+    
+    Required fields:
+    - name
+    - address_line1
+    - city
+    - province
+    - postal_code
+    - phone
+    
+    Optional fields:
+    - address_line2
+    - contact_name
+    - contact_email
+    - status (active/inactive, defaults to active)
+    - notes
+    """
+    
+    REQUIRED_FIELDS = ['name', 'address_line1', 'city', 'province', 'postal_code', 'phone']
+    OPTIONAL_FIELDS = ['address_line2', 'contact_name', 'contact_email', 'status', 'notes']
+    
+    def __init__(self, csv_file, user):
+        """
+        Initialize importer.
+        
+        Args:
+            csv_file: Uploaded CSV file object
+            user: User performing the import (for audit trail)
+        """
+        self.csv_file = csv_file
+        self.user = user
+        self.valid_rows = []
+        self.invalid_rows = []
+        
+    def parse(self):
+        """
+        Parse CSV file and validate rows.
+        
+        Returns:
+            dict: {'valid': list, 'invalid': list, 'total': int}
+        """
+        try:
+            # Read file content
+            content = self.csv_file.read().decode('utf-8')
+            csv_reader = csv.DictReader(io.StringIO(content))
+            
+            # Get headers
+            headers = csv_reader.fieldnames
+            if not headers:
+                raise CSVImportError("CSV file is empty or invalid")
+            
+            # Check required fields
+            missing_fields = [field for field in self.REQUIRED_FIELDS if field not in headers]
+            if missing_fields:
+                raise CSVImportError(f"Missing required fields: {', '.join(missing_fields)}")
+            
+            # Process each row
+            for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (account for header)
+                result = self._validate_row(row, row_num)
+                if result['valid']:
+                    self.valid_rows.append(result)
+                else:
+                    self.invalid_rows.append(result)
+            
+            return {
+                'valid': self.valid_rows,
+                'invalid': self.invalid_rows,
+                'total': len(self.valid_rows) + len(self.invalid_rows)
+            }
+            
+        except UnicodeDecodeError:
+            raise CSVImportError("Invalid file encoding. Please use UTF-8 encoded CSV.")
+        except csv.Error as e:
+            raise CSVImportError(f"CSV parsing error: {str(e)}")
+    
+    def _validate_row(self, row, row_num):
+        """
+        Validate a single CSV row.
+        
+        Args:
+            row: Dictionary of CSV row data
+            row_num: Row number (for error reporting)
+            
+        Returns:
+            dict: {'valid': bool, 'data': dict, 'errors': list, 'row_num': int}
+        """
+        errors = []
+        data = {}
+        
+        # Strip whitespace from all values
+        row = {k: v.strip() if v else '' for k, v in row.items()}
+        
+        # Validate required fields
+        for field in self.REQUIRED_FIELDS:
+            value = row.get(field, '').strip()
+            if not value:
+                errors.append(f"{field} is required")
+            else:
+                data[field] = value
+        
+        # If required fields are missing, return early
+        if errors:
+            return {
+                'valid': False,
+                'data': row,
+                'raw_data': row,
+                'errors': errors,
+                'row_num': row_num
+            }
+        
+        # Validate status if provided
+        status = row.get('status', '').strip().lower()
+        if status:
+            if status in ['active', 'inactive']:
+                data['status'] = status
+            else:
+                errors.append("status must be 'active' or 'inactive'")
+        else:
+            data['status'] = 'active'
+        
+        # Validate email if provided
+        email = row.get('contact_email', '').strip()
+        if email:
+            try:
+                validate_email(email)
+                data['contact_email'] = email
+            except ValidationError:
+                errors.append(f"Invalid email format: {email}")
+        
+        # Add optional fields
+        for field in ['address_line2', 'contact_name', 'notes']:
+            value = row.get(field, '').strip()
+            if value:
+                data[field] = value
+        
+        return {
+            'valid': len(errors) == 0,
+            'data': data,
+            'raw_data': row,
+            'errors': errors,
+            'row_num': row_num
+        }
+    
+    def import_rows(self, rows):
+        """
+        Import validated rows into database.
+        
+        Args:
+            rows: List of valid row dictionaries from parse()
+            
+        Returns:
+            dict: {'created': int, 'errors': list}
+        """
+        if not rows:
+            return {'created': 0, 'errors': []}
+        
+        created_count = 0
+        errors = []
+        
+        for row in rows:
+            try:
+                centre_data = row['data'].copy()
+                
+                # Create centre
+                centre = Centre.objects.create(**centre_data)
+                created_count += 1
+                
+            except Exception as e:
+                errors.append({
+                    'row_num': row['row_num'],
+                    'error': str(e)
+                })
+        
+        return {
+            'created': created_count,
+            'errors': errors
+        }
+    
+    @staticmethod
+    def get_import_template():
+        """
+        Generate a CSV template for centre import.
+        
+        Returns:
+            str: CSV content
+        """
+        output = io.StringIO()
+        fieldnames = ['name', 'address_line1', 'address_line2', 'city', 'province', 'postal_code', 'phone', 'contact_name', 'contact_email', 'status', 'notes']
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(fieldnames)
+        
+        # Write example row 1
+        example1 = [
+            'Main Centre', '123 Main Street', '', 'Toronto', 'ON', 'M1A 1A1', '416-555-0100',
+            'John Smith', 'john@maincentre.com', 'active', 'Primary location'
+        ]
+        writer.writerow(example1)
+        
+        # Write example row 2
+        example2 = [
+            'Downtown Branch', '456 Bay Street', 'Suite 200', 'Toronto', 'ON', 'M5A 1A1', '416-555-0101',
+            'Jane Doe', 'jane@maincentre.com', 'active', 'Downtown location'
+        ]
+        writer.writerow(example2)
+        
+        # Write example row 3
+        example3 = [
+            'North Campus', '789 Yonge Street', '', 'Toronto', 'ON', 'M4A 2B3', '416-555-0102',
+            'Bob Johnson', '', 'inactive', 'Closed as of 2024'
+        ]
+        writer.writerow(example3)
+        
+        return output.getvalue()

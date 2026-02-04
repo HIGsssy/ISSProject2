@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Centre, Child, VisitType, Visit, CaseloadAssignment
+from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, ThemeSetting
 
 
 @admin.register(Centre)
@@ -476,3 +476,50 @@ class CaseloadAssignmentAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Only supervisors and admins can delete caseload assignments."""
         return self.has_module_permission(request)
+
+@admin.register(ThemeSetting)
+class ThemeAdmin(admin.ModelAdmin):
+    """Admin interface for customizing the UI theme."""
+    
+    fieldsets = (
+        ('Brand Colors', {
+            'fields': ('primary_color', 'secondary_color', 'accent_color'),
+            'description': 'Define the main brand colors'
+        }),
+        ('Status Colors', {
+            'fields': ('success_color', 'warning_color', 'danger_color'),
+            'description': 'Colors used for status indicators and feedback'
+        }),
+        ('Header/Navbar', {
+            'fields': ('header_bg_color',),
+            'description': 'Customize header/navbar appearance'
+        }),
+        ('Images & Branding', {
+            'fields': ('logo_image', 'favicon', 'background_image'),
+            'description': 'Upload custom images for logo, favicon, and optional background. Logo recommended: 200x100px or 350x200px'
+        }),
+        ('Text Customization', {
+            'fields': ('site_title',),
+            'description': 'Customize the site title shown throughout the application'
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def has_add_permission(self, request):
+        """Only allow one theme settings instance."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of theme settings."""
+        return False
+    
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the single theme settings instance."""
+        from django.shortcuts import redirect
+        obj = ThemeSetting.get_theme()
+        return redirect(f'/admin/core/themesetting/{obj.id}/change/')

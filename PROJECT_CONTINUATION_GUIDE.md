@@ -1,6 +1,6 @@
 # ISS Portal - Project Continuation Guide
-**Last Updated:** February 2, 2026  
-**Project Status:** Fully Operational - Phase 5 Reporting Complete
+**Last Updated:** February 4, 2026  
+**Project Status:** Fully Operational - Phase 7 Staff-Scoped Reporting Complete
 
 ---
 
@@ -17,24 +17,29 @@
 10. [API Endpoints](#api-endpoints)
 11. [Templates & UI](#templates--ui)
 12. [Docker Configuration](#docker-configuration)
-13. [Recent Bug Fixes](#recent-bug-fixes)
-14. [Testing Checklist](#testing-checklist)
-15. [Known Considerations](#known-considerations)
-16. [Development Commands](#development-commands)
+13. [Custom Theming System](#custom-theming-system)
+14. [Centre Management](#centre-management)
+15. [Staff-Scoped Reporting (Phase 7)](#staff-scoped-reporting-phase-7)
+16. [Recent Bug Fixes](#recent-bug-fixes)
+17. [Testing Checklist](#testing-checklist)
+18. [Known Considerations](#known-considerations)
+19. [Development Commands](#development-commands)
 
 ---
 
 ## Project Overview
 
-**ISS Portal** is a Django-based case management system for child welfare services. It manages children's records, staff caseloads, visits, referrals, and community partnerships.
+**ISS Portal** is a Django-based case management system for child welfare services. It manages children's records, staff caseloads, visits, referrals, community partnerships, centre information, and provides customizable theming for multi-tenant deployments.
 
 ### Primary Use Cases:
 - Child record management with encrypted PII
 - Staff caseload assignment and tracking
 - Visit logging and reporting
 - Referral management to community partners
+- Centre management with CSV bulk import
+- Custom branding and theming per-instance
 - Comprehensive audit logging
-- CSV bulk import capabilities
+- CSV bulk import capabilities (children and centres)
 - Role-based access control
 
 ---
@@ -46,29 +51,90 @@
 - **PostgreSQL 15-alpine** - Database with encryption
 - **Django REST Framework** - API layer
 - **django-encrypted-model-fields** - PII encryption
+- **django-colorfield** - Color picker widgets for admin
 - **Gunicorn** - WSGI server (4 workers)
 
 ### Frontend:
 - **Django Templates** - Server-side rendering
-- **Tailwind CSS** - Utility-first styling
+- **Tailwind CSS 3.4** - Production-compiled, utility-first styling (38KB minified)
 - **Vanilla JavaScript** - Form handling and API calls
+- **Custom theme system** - Branded colors, logos, and site title
 
 ### Infrastructure:
-- **Docker & Docker Compose** - Containerization
+- **Docker & Docker Compose** - Containerization with multi-stage CSS build
+- **Node.js 18-alpine** - Tailwind CSS compilation during Docker build
 - **Nginx** - Reverse proxy and static file serving
 - **Python 3.11-slim** - Base image
 
 ### Deployment:
+- Multi-stage Docker build: CSS compilation → Python application
 - Multi-container setup: web (Django), db (PostgreSQL), nginx
 - Environment-based configuration via .env file
-- Static files served by Nginx
+- Static files served by Nginx with gzip compression
 - Media files stored in persistent volumes
 
 ---
 
 ## Recent Major Changes
 
-### 1. Status System Restructuring (Completed January 23, 2026)
+### 1. Production Tailwind CSS & Theming System (February 4, 2026)
+
+**CSS Production Compilation:**
+- Moved from CDN Tailwind to production-compiled CSS in Docker
+- Multi-stage Docker build with Node.js for CSS compilation
+- **Critical fix**: Copy templates before npm build so Tailwind can scan for classes
+- Result: 38KB minified CSS (up from 16KB missing utilities)
+- Output: style.css served via Nginx, gzipped to 3.7KB
+
+**Custom Theming System:**
+- New `ThemeSetting` model (singleton, pk=1)
+- Fields: 6 colors (ColorField with native picker), 3 image uploads, site_title
+- Admin interface with organized fieldsets: Brand Colors, Status Colors, Header, Images, Text
+- Context processor injects theme into all templates
+- Dynamic CSS variables: `--primary`, `--secondary`, `--accent`, etc.
+- Dynamic logo, site title, header background in navbar
+
+**Packages Added:**
+- `django-colorfield==0.11.0` - HTML5 color picker widgets
+- `Pillow==10.1.0` - Image upload and processing
+
+**Migrations:**
+- `0009_themesetting.py` - ThemeSetting model
+- `0010_alter_themesetting_*.py` - ColorField conversion
+- `0011_themesetting_header_bg_color.py` - Header background
+
+### 2. Centre Management & CSV Import (February 4, 2026)
+
+**Centre Model:**
+- Fields: name, address_line1, address_line2, city, province, postal_code, phone, contact_name, contact_email, status, notes
+- All encrypted for PII protection
+- Status choices: active, inactive
+
+**CSV Import Utility:**
+- `CentreCSVImporter` class in core/utils/csv_import.py (200 lines)
+- Required fields: name, address_line1, city, province, postal_code, phone
+- Optional fields: address_line2, contact_name, contact_email, status, notes
+- Validation: Email format, status choices, required fields
+- Template generation with 3 example rows
+
+**Views & Templates:**
+- `import_centres()` - Upload and validate CSV
+- `import_centres_preview()` - Preview valid/invalid rows
+- `download_centres_template()` - Download example CSV
+- `centre_list()` - View all centres (all users)
+- Templates: import_centres.html, import_centres_preview.html, centre_list.html
+
+**Navigation:**
+- Added "Centres" link to main navigation (desktop and mobile)
+- Removed "Community Partners" link
+- All users can view centre contact information
+- Import button visible only to superusers/admins
+
+**Permissions:**
+- Centre list: viewable by all authenticated users
+- Import functionality: superuser or role == 'admin' only
+
+### 3. Status System Restructuring (Completed January 23, 2026)
 
 **Previous System:** Single `status` field with values: active, on_hold, discharged, non_caseload
 
@@ -95,7 +161,7 @@
 - `static/css/custom.css` - New badge styles
 - All 8 templates in `templates/core/` updated
 
-### 2. CSV Bulk Import Feature (Completed)
+### 4. CSV Bulk Import Feature (Completed)
 - Upload CSV files to bulk create child records
 - Preview before import with validation
 - Error reporting for invalid data
@@ -638,6 +704,256 @@ def update_child_caseload_status_on_delete(sender, instance, **kwargs):
 - Discharge Reason textarea (required)
 - Confirmation warning
 - Sets: overall_status='discharged', caseload_status='non_caseload', on_hold=False
+
+---
+
+## Custom Theming System
+
+### ThemeSetting Model
+Located in `core/models.py`. Singleton pattern (pk=1, prevents deletion).
+
+**Fields:**
+- `primary_color` (ColorField) - Primary brand color
+- `secondary_color` (ColorField) - Secondary accent color  
+- `accent_color` (ColorField) - Accent color for highlights
+- `success_color` (ColorField) - Success status color
+- `warning_color` (ColorField) - Warning status color
+- `danger_color` (ColorField) - Error/danger color
+- `header_bg_color` (ColorField) - Navigation bar background
+- `logo_image` (ImageField) - Logo upload (recommended: 200x100 or 350x200px)
+- `favicon` (ImageField) - Browser tab icon
+- `background_image` (ImageField) - Page background
+- `site_title` (CharField) - Custom site name in navbar
+- `created_at`, `updated_at` (DateTimeField) - Timestamps
+
+**Key Methods:**
+- `get_theme()` - Static method returning singleton instance
+- `save()` - Enforces pk=1, prevents duplicates
+- `delete()` - Overridden to prevent deletion
+
+### Admin Interface
+- Native color picker via django-colorfield
+- Image uploads with preview
+- Organized fieldsets by function
+- Single-instance editing pattern
+
+### Template Integration
+- Logo display in navbar
+- Site title customization
+- Dynamic CSS variable injection
+- Header background color
+
+### Migration History
+- `0009_themesetting.py` - Initial model
+- `0010_alter_themesetting_*.py` - ColorField conversion
+- `0011_themesetting_header_bg_color.py` - Header customization
+
+---
+
+## Centre Management
+
+### Centre Model
+Located in `core/models.py`
+
+**Fields:**
+- `name` - Centre name
+- `address_line1`, `address_line2` - Street addresses (encrypted)
+- `city`, `province`, `postal_code` - Location (encrypted)
+- `phone`, `contact_name`, `contact_email` - Contact info (encrypted)
+- `status` - 'active' or 'inactive'
+- `notes` - Additional information (encrypted)
+
+### CSV Import Utility (CentreCSVImporter)
+Located in `core/utils/csv_import.py`
+
+**Required Fields:** name, address_line1, city, province, postal_code, phone
+**Optional Fields:** address_line2, contact_name, contact_email, status, notes
+
+**Validation:**
+- Email format verification
+- Status choice validation (active/inactive)
+- Whitespace trimming
+- Returns summary with error messages
+
+**Methods:**
+- `parse()` - Read and validate CSV
+- `import_rows()` - Create Centre records
+- `get_import_template()` - Generate example CSV
+
+### Views
+- `centre_list()` - View all centres (all users)
+- `import_centres()` - Upload CSV (admin/supervisor)
+- `import_centres_preview()` - Preview before import
+- `download_centres_template()` - Get example CSV
+
+### Templates
+- `core/centre_list.html` - Centre listing table
+- `core/import_centres.html` - Import form with instructions
+- `core/import_centres_preview.html` - Preview and confirmation
+
+### Navigation Changes
+- Added "Centres" link (all authenticated users)
+- Removed "Community Partners" link
+- Import button visible only to admin/supervisor
+
+### Permissions
+- List: All authenticated users can view
+- Import: superuser or role == 'admin' only
+
+---
+
+## Staff-Scoped Reporting (Phase 7)
+
+### Overview
+Staff (front-line workers) now have secure access to view their own visit data through the Reports system, with automatic filtering and restricted access to sensitive organizational reports.
+
+### Permission System
+
+**Two-Layer Architecture (Critical):**
+
+1. **View-Level Permission** (`reports/views.py`):
+   ```python
+   def can_access_reports(user):
+       return user.is_superuser or user.role in ['staff', 'supervisor', 'admin', 'auditor']
+   ```
+   - Controls access to report views via `@user_passes_test` decorator
+   - Added `'staff'` role to allow staff access
+
+2. **Template-Level Permission** (`accounts/models.py`):
+   ```python
+   @property
+   def can_access_reports(self):
+       return self.is_superuser or self.role in ['staff', 'supervisor', 'admin', 'auditor']
+   ```
+   - Controls "Reports" link visibility in navigation
+   - Must be synchronized with view-level check to prevent login loops
+
+**Important:** Both checks MUST include identical role lists. Mismatched permissions cause redirect loops.
+
+### Staff Detection Pattern
+Used consistently across views and templates:
+```python
+user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'
+```
+
+### Visits Report Filtering
+
+**Modified `visits_report()` View Behavior:**
+
+**For Staff Users:**
+- Auto-filters: `Visit.objects.filter(staff=request.user)`
+- Sees only their own visits (cannot change via URL parameter)
+- Can filter by: date range, child, centre, visit type
+- Cannot export to CSV (button hidden, backend validation)
+- Sees info box explaining restrictions
+- Staff column hidden from table (redundant)
+- Staff filter dropdown hidden
+
+**For Supervisors/Admins:**
+- Sees all visits (unchanged behavior)
+- Can filter by any staff member
+- Can export to CSV
+- Can see staff column in table
+- All controls visible and functional
+
+**Implementation Details:**
+```python
+# In visits_report() view
+user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'
+
+# Force staff ID for staff users (URL parameter silently ignored)
+if user_is_staff:
+    staff_id = request.user.id
+
+# Disable CSV export for staff
+if export_format == 'csv' and not user_is_staff:
+    # Generate CSV
+else:
+    # Continue to HTML view
+
+# Pass to template
+context = {
+    'user_is_staff': user_is_staff,
+    'current_staff_name': request.user.get_full_name(),
+}
+```
+
+### Dashboard Report Filtering
+
+**Staff Dashboard:**
+- Shows ONLY "Visits Report" card
+- Other 8 report cards completely hidden via `{% if not user_is_staff %}` conditionals
+- Prevents staff from discovering sensitive reports
+- Page subtitle changes: "View your visit records and hours"
+
+**Supervisor/Admin Dashboard:**
+- Shows all 9 report cards (unchanged):
+  1. Children Served Report
+  2. Visits Report
+  3. Staff Summary Report
+  4. Caseload Report
+  5. Age Out Report
+  6. Month Added Report
+  7. Staff Site Visits Report
+  8. Site Visit Summary Report
+- Page subtitle: "Generate and view various reports for the ISS Portal"
+
+**Hidden Reports for Staff:**
+- Cannot be accessed directly (404 with permission check)
+- Cannot be discovered via dashboard
+- Cannot be guessed via URL patterns
+
+### Template Changes
+
+**visits_report.html:**
+- Blue info box explaining staff restrictions (conditional)
+- Staff filter dropdown hidden for staff (conditional)
+- Staff column hidden from visit table for staff (conditional)
+- CSV export button replaced with permission message for staff (conditional)
+- Dynamic table colspan: 6 for staff, 7 for others
+
+**dashboard.html:**
+- Page subtitle changes based on user role
+- All non-visits reports wrapped in `{% if not user_is_staff %}...{% endif %}`
+- Each report card conditionally rendered
+
+### Files Modified
+1. `accounts/models.py` - Added `'staff'` to can_access_reports property
+2. `reports/views.py` - Added `'staff'` to can_access_reports() function, staff detection and filtering logic
+3. `templates/reports/visits_report.html` - Staff-specific UI adjustments
+4. `templates/reports/dashboard.html` - Conditional report rendering
+
+### Security Architecture
+
+**Multi-Layer Defense:**
+1. **View-Level:** Permission decorator blocks unauthorized access
+2. **Query-Level:** Django ORM filters by staff user ID
+3. **URL-Level:** Parameters silently ignored for staff (no error page leakage)
+4. **Template-Level:** UI elements hidden to prevent discovery
+5. **Permission-Level:** CSV export disabled at both template and view level
+
+**What Staff Cannot Access:**
+- Other staff member's visits
+- Staff summary reports
+- Caseload metrics
+- Age out projections
+- Organization-wide analytics
+- CSV exports
+- Bulk download capabilities
+
+### Navigation Changes
+- "Reports" link now visible to staff users (was previously hidden)
+- Points to Reports Dashboard
+- Only shows "Visits Report" card after navigation
+
+### Testing Verification
+- ✅ Staff can access Reports without login loop
+- ✅ Staff dashboard shows only Visits Report
+- ✅ Visits report auto-filters to staff member's visits
+- ✅ Staff cannot override filters via URL parameters
+- ✅ CSV export hidden and blocked for staff
+- ✅ Supervisor/Admin sees all reports unchanged
+- ✅ All conditional templates render correctly
 
 ---
 

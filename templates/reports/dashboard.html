@@ -6,10 +6,15 @@
 <div class="container mx-auto px-4 py-8">
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Reports Dashboard</h1>
+        {% if user_is_staff %}
+        <p class="mt-2 text-sm text-gray-600">View your visit records and hours</p>
+        {% else %}
         <p class="mt-2 text-sm text-gray-600">Generate and view various reports for the Inclusion Support Services Portal</p>
+        {% endif %}
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% if not user_is_staff %}
         <!-- Children Served Report -->
         <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
             <div class="p-6">
@@ -31,6 +36,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Visits Report -->
         <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
@@ -54,6 +60,7 @@
             </div>
         </div>
 
+        {% if not user_is_staff %}
         <!-- Staff Summary Report -->
         <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
             <div class="p-6">
@@ -186,6 +193,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

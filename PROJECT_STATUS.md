@@ -1,20 +1,201 @@
 # ISS Portal - Project Status Summary
-*Last Updated: February 2, 2026*
+**Last Updated: February 4, 2026**
 
 ## Project Overview
-Django-based web application for managing children's services with staff caseload management, visit tracking, community partner management, and comprehensive reporting.
+Django-based web application for managing children's services with staff caseload management, visit tracking, centre management, comprehensive reporting with staff-scoped access, custom theming, and CSV import capabilities.
 
 **Technology Stack:**
 - Django 4.2.9
 - PostgreSQL 15-alpine
-- Docker/Docker Compose
+- Docker/Docker Compose with multi-stage CSS build
 - Python 3.11-slim
 - Nginx reverse proxy
+- Tailwind CSS 3.4 (production-compiled)
 
-## Latest Implementation: Self-Configuring Docker Deployment (February 2, 2026)
+## Latest Implementation: Phase 7 - Staff-Scoped Reporting (February 4, 2026)
 
-### Overview
-The ISS Portal Docker image now includes an **interactive self-configuration system** that runs automatically on first launch, making Docker Hub deployment completely automated with push-button simplicity.
+### Staff Reporting Access Control
+
+**Problem Solved:**
+- Staff members (front-line workers) had no access to view their own visit data
+- Supervisors/Admins could see all reports but staff had no visibility
+- Staff required a way to track their own hours and visits
+
+**Solution Implemented:**
+
+**Permission Architecture:**
+- Updated `can_access_reports` property in `accounts/models.py` to include `'staff'` role
+- Updated `can_access_reports()` function in `reports/views.py` to include `'staff'` role
+- Both checks must be synchronized to prevent login redirect loops
+
+**Visits Report Filtering:**
+- Modified `visits_report()` view to detect staff users with pattern: `user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'`
+- Staff auto-filters to view only their own visits: `Visit.objects.filter(staff=request.user)`
+- Staff cannot override filter via URL parameters (silently ignored in view)
+- Staff can still filter by: date range, child, centre, visit type
+- CSV export button hidden for staff users (permission restriction via `if export_format == 'csv' and not user_is_staff`)
+
+**Dashboard Restrictions:**
+- Modified `reports_dashboard()` view to pass `user_is_staff` context variable
+- Updated `templates/reports/dashboard.html` to conditionally render reports:
+  - Staff users see: Only "Visits Report" card
+  - Supervisors/Admins see: All 9 report cards (Children Served, Visits, Staff Summary, Caseload, Age Out, Month Added, Staff Site Visits, Site Visit Summary)
+- Dashboard page title and description change based on user role
+
+**UI/Template Updates:**
+- `templates/reports/visits_report.html` enhancements for staff:
+  - Blue info box explaining staff can only view own visits
+  - Staff filter dropdown hidden (cannot change staff assignment)
+  - Staff column removed from table (redundant for staff view)
+  - CSV export button replaced with permission message
+  - Dynamic table colspan based on user role (6 for staff, 7 for others)
+- `templates/reports/dashboard.html` conditional rendering:
+  - All non-visits reports wrapped in `{% if not user_is_staff %}...{% endif %}`
+  - Dashboard subtitle changes based on role
+
+**Navigation:**
+- Staff users now see "Reports" link in navigation menu
+- Link points to reports dashboard with auto-filtered visits view
+- No separate staff-only report page needed
+
+**Result:**
+- ✅ Staff can access reports without login loop
+- ✅ Staff see only their own visit data automatically
+- ✅ Staff cannot bypass filters or view sensitive reports
+- ✅ Staff can filter by date, child, centre for their visits
+- ✅ CSV export disabled for staff users
+- ✅ Dashboard shows only appropriate reports for staff role
+- ✅ Permission architecture is synchronized and secure
+
+**Files Modified:**
+- `accounts/models.py` - Added `'staff'` to `can_access_reports` property
+- `reports/views.py` - Added `'staff'` to `can_access_reports()` function, staff detection and auto-filtering in `visits_report()`, staff context in `reports_dashboard()`
+- `templates/reports/visits_report.html` - Staff-specific info box, hidden controls, hidden columns, disabled CSV
+- `templates/reports/dashboard.html` - Conditional rendering of non-visits reports
+
+**Testing Verified:**
+- ✅ Staff login doesn't redirect loop
+- ✅ Reports navigation link visible to staff
+- ✅ Staff dashboard shows only Visits Report
+- ✅ Visits report auto-filters to staff member's visits
+- ✅ Staff can filter by date, child, centre
+- ✅ CSV export hidden from staff
+- ✅ Supervisor/Admin sees all reports unchanged
+
+---
+
+## Previous Implementation: Centre Management & Custom Theming (February 4, 2026)
+
+### A. Production Tailwind CSS Compilation
+
+**Problem Solved:**
+- Previous CDN-based Tailwind CSS wasn't production-ready
+- CSS file was only 16KB, missing most utility classes
+- Root cause: Templates weren't available during CSS compilation in Docker
+
+**Solution Implemented:**
+- Multi-stage Docker build with Node.js + Python
+- Stage 1 (Node.js): Compiles Tailwind CSS with template scanning
+- Key fix: Copy templates BEFORE npm build so Tailwind can find class names
+- Stage 2 (Python): Final application container with compiled CSS
+
+**Result:**
+- CSS file: 38KB minified (up from 16KB)
+- All Tailwind utilities available in production
+- HTTP 200 delivery, gzipped to 3.7KB
+- Zero CDN dependency
+
+**Files Modified:**
+- `Dockerfile` - Multi-stage build with template copying before CSS build
+- `package.json`, `tailwind.config.js`, `postcss.config.js` - CSS build configuration
+- `static/css/input.css` - Tailwind @tailwind directives
+- `requirements.txt` - Added Pillow for image processing
+
+### B. Custom Theming System
+
+**Models Created:**
+- `core.models.ThemeSetting` - Singleton model (pk=1) with:
+  - 6 ColorField fields: primary, secondary, accent, success, warning, danger
+  - 3 ImageField uploads: logo_image, favicon, background_image
+  - CharField: site_title (customizable)
+  - DateTimeField: created_at, updated_at
+  - Methods: get_theme() singleton getter, enforced pk=1, prevented deletion
+
+**Admin Interface:**
+- `ThemeAdmin` in core/admin.py with organized fieldsets:
+  1. Brand Colors (primary, secondary, accent)
+  2. Status Colors (success, warning, danger)
+  3. Header/Navbar (header_bg_color)
+  4. Images & Branding (logo, favicon, background)
+  5. Text Customization (site_title)
+  6. Metadata (timestamps, collapsed)
+- Color picker widget: Native HTML5 `<input type="color">` via django-colorfield
+
+**Frontend Integration:**
+- Context processor injects theme_settings into all templates
+- Dynamic CSS variables in base.html: `--primary`, `--secondary`, etc.
+- Logo display: Recommended size 200x100 or 350x200px (horizontal ratio)
+- Header background: Dynamic color via `style` attribute
+- Site title: Display in navbar with fallback to "ISS Portal"
+
+**Packages Added:**
+- `django-colorfield==0.11.0` - Native color picker widgets
+- `Pillow==10.1.0` - Image upload and processing
+
+**Result:**
+- Fully customizable branding per-instance
+- Zero developer intervention for theming
+- Color picker provides superior UX vs. text input
+- All changes persist in database
+
+**Migrations:**
+- `0009_themesetting.py` - Initial ThemeSetting model
+- `0010_alter_themesetting_*.py` - ColorField conversion
+- `0011_themesetting_header_bg_color.py` - Header customization field
+
+### C. Centre Management & CSV Import
+
+**Models:**
+- `Centre` model with fields: name, address_line1, address_line2, city, province, postal_code, phone, contact_name, contact_email, status, notes
+
+**CSV Import Utility:**
+- `CentreCSVImporter` class in core/utils/csv_import.py
+- Required fields: name, address_line1, city, province, postal_code, phone
+- Optional fields: address_line2, contact_name, contact_email, status, notes
+- Validation: Email format verification, status choice validation (active/inactive)
+- Template generation with 3 example rows
+
+**Views:**
+- `import_centres()` - File upload, validation, session storage
+- `import_centres_preview()` - Preview valid/invalid rows, confirmation, import
+- `download_centres_template()` - CSV template generation
+- `centre_list()` - View all centres (all users), import button (admin/supervisor only)
+
+**Templates:**
+- `core/import_centres.html` - Import form with instructions (5-step process)
+- `core/import_centres_preview.html` - Preview with summary stats, valid/invalid rows
+- `core/centre_list.html` - Centre listing with contact information
+
+**Navigation:**
+- Removed "Community Partners" link
+- Added "Centres" link (desktop and mobile nav)
+- Navigation in base.html updated for all user levels
+
+**Permissions:**
+- All authenticated users can view centres and contact information
+- Import button only visible to superusers and admins (user.is_superuser or user.role == 'admin')
+- Import utility checks permission on POST
+
+**Result:**
+- Bulk centre management via CSV
+- Permission-based access control
+- User-friendly preview and confirmation workflow
+- All users can access centre contact information
+
+---
+
+### Overview (Self-Configuring Docker - February 2, 2026)
+The ISS Portal Docker image includes an **interactive self-configuration system** that runs automatically on first launch, making Docker Hub deployment completely automated with push-button simplicity.
 
 ### Dual Distribution Strategy
 
@@ -111,9 +292,15 @@ docker-compose -f docker-compose.hub.yml up -d
 
 2. **Child Model:**
    - first_name, last_name
-   - address_line1, address_line2, city, province, postal_code
-   - guardian1_name, guardian1_phone, guardian1_email
-   - guardian2_name, guardian2_phone, guardian2_email
+   - address_line1, address_line2, city, province, postal_code, alternate_location
+   - guardian1_name, guardian1_home_phone, guardian1_work_phone, guardian1_cell_phone, guardian1_email
+   - guardian2_name, guardian2_home_phone, guardian2_work_phone, guardian2_cell_phone, guardian2_email
+   - referral_source_type, referral_source_name, referral_source_phone, referral_agency_name, referral_agency_address
+   - referral_reason_* fields (cognitive, language, gross_motor, fine_motor, social_emotional, self_help, other)
+   - referral_reason_details, referral_consent_on_file
+   - attends_childcare, childcare_centre, childcare_frequency
+   - attends_earlyon, earlyon_centre, earlyon_frequency
+   - agency_continuing_involvement
    - notes, discharge_reason
 
 3. **Visit Model:**
@@ -241,6 +428,36 @@ Comprehensive reporting dashboard with 8 reports accessible to supervisors, admi
 
 ## Recent Bug Fixes
 
+### Edit Child Phone Fields (Fixed: February 4, 2026)
+**Issue:** `edit_child` view and template used old single phone fields (guardian1_phone, guardian2_phone)
+
+**Root Cause:** 
+Migration 0008 split phone fields into home/work/cell but the edit form wasn't updated to match.
+
+**Fix Applied:**
+- Updated `core/views.py` edit_child function to handle split phone fields
+- Updated `templates/core/edit_child.html` to show 3 phone inputs per guardian
+- Now matches the add_child forms and database schema
+
+**Files Modified:** 
+- `c:\ISSProject2\core\views.py` (lines 400-406)
+- `c:\ISSProject2\templates\core\edit_child.html` (guardian sections)
+
+**Status:** ✅ Fixed and tested
+
+### Schema Migration Sync (Fixed: February 4, 2026)
+**Issue:** Migration 0008 existed in database but not in Django's migration history
+
+**Root Cause:** 
+Model changes were extensive but migration wasn't generated and tracked properly.
+
+**Fix Applied:**
+- Generated migration 0008 with `makemigrations`
+- Faked migration since database schema already matched
+- All migrations now in sync
+
+**Status:** ✅ Fixed and deployed to test server
+
 ### Discharge Child Functionality (Fixed: January 21, 2026)
 **Issue:** `CaseloadAssignment has no field named 'updated_by'`
 
@@ -268,8 +485,10 @@ Removed `updated_by=request.user` from the CaseloadAssignment update operation i
 - Discharge functionality now working
 
 ### Database Migrations
-Latest migration: `0005_rename_core_referr_child_i_7a3f92_idx_core_referr_child_i_2736d2_idx_and_more.py`
-- Converts 38 fields to encrypted equivalents
+Latest migration: `0008_remove_child_core_child_last_na_66f284_idx_and_more.py` (February 4, 2026)
+- Splits guardian phone fields into home_phone, work_phone, cell_phone for each guardian
+- Adds comprehensive referral tracking fields
+- Adds childcare and EarlyON attendance tracking
 - All migrations applied successfully
 
 ## Key Files & Locations
@@ -303,7 +522,7 @@ Latest migration: `0005_rename_core_referr_child_i_7a3f92_idx_core_referr_child_
 
 ### Performance
 - Minimal overhead observed from encryption
-- Application remains responsive
+- Application remall known bugs resolved as of February 4, 2026
 - No optimization needed at current scale
 
 ### Data Migration

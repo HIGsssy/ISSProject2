@@ -49,6 +49,12 @@ nginx/ssl/*.key
 nginx/ssl/*.crt
 nginx/ssl/*.pem
 
+# Node.js and Tailwind CSS build
+node_modules/
+package-lock.json
+staticfiles/css/style.css
+static/css/output.css
+
 # Backup files
 *.bak
 *.backup

@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
+from colorfield.fields import ColorField
 from encrypted_model_fields.fields import (
     EncryptedCharField,
     EncryptedTextField,
@@ -672,3 +673,95 @@ def update_child_caseload_status_on_delete(sender, instance, **kwargs):
     if not has_assignments and child.overall_status == 'active' and child.caseload_status == 'caseload':
         child.caseload_status = 'awaiting_assignment'
         child.save(update_fields=['caseload_status'])
+
+
+class ThemeSetting(models.Model):
+    """
+    Singleton model for global UI theme customization.
+    Only one instance should exist - accessed via ThemeSetting.objects.get_theme()
+    """
+    
+    # Primary brand colors
+    primary_color = ColorField(
+        default='#3b82f6',
+        help_text='Primary brand color'
+    )
+    secondary_color = ColorField(
+        default='#8b5cf6',
+        help_text='Secondary color'
+    )
+    accent_color = ColorField(
+        default='#10b981',
+        help_text='Accent/success color'
+    )
+    success_color = ColorField(
+        default='#10b981',
+        help_text='Success color'
+    )
+    warning_color = ColorField(
+        default='#f59e0b',
+        help_text='Warning color'
+    )
+    danger_color = ColorField(
+        default='#ef4444',
+        help_text='Danger/error color'
+    )
+    
+    # Header/navbar styling
+    header_bg_color = ColorField(
+        default='#ffffff',
+        help_text='Header/navbar background color'
+    )
+    
+    # Images
+    logo_image = models.ImageField(
+        upload_to='theme/',
+        blank=True,
+        help_text='Logo image displayed in navbar (recommended: 200x100px or 350x200px for best appearance)'
+    )
+    favicon = models.ImageField(
+        upload_to='theme/',
+        blank=True,
+        help_text='Favicon image (recommended: 32x32px or square)'
+    )
+    background_image = models.ImageField(
+        upload_to='theme/',
+        blank=True,
+        help_text='Optional background image'
+    )
+    
+    # Text customization
+    site_title = models.CharField(
+        max_length=100,
+        default='Inclusion Support Services Portal',
+        help_text='Site title shown in navbar and page title'
+    )
+    
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Theme Settings'
+        verbose_name_plural = 'Theme Settings'
+    
+    def __str__(self):
+        return 'ISS Portal Theme'
+    
+    @classmethod
+    def get_theme(cls):
+        """
+        Singleton pattern: Get or create the theme settings instance.
+        Returns: ThemeSetting instance (always id=1)
+        """
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+    
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists by forcing id=1."""
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    @staticmethod
+    def delete(*args, **kwargs):
+        """Prevent deletion of the singleton instance."""
+        pass
