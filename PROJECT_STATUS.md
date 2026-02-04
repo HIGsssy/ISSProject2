@@ -1,5 +1,5 @@
 # ISS Portal - Project Status Summary
-*Last Updated: February 2, 2026*
+**Last Updated: February 4, 2026*
 
 ## Project Overview
 Django-based web application for managing children's services with staff caseload management, visit tracking, community partner management, and comprehensive reporting.
@@ -111,9 +111,15 @@ docker-compose -f docker-compose.hub.yml up -d
 
 2. **Child Model:**
    - first_name, last_name
-   - address_line1, address_line2, city, province, postal_code
-   - guardian1_name, guardian1_phone, guardian1_email
-   - guardian2_name, guardian2_phone, guardian2_email
+   - address_line1, address_line2, city, province, postal_code, alternate_location
+   - guardian1_name, guardian1_home_phone, guardian1_work_phone, guardian1_cell_phone, guardian1_email
+   - guardian2_name, guardian2_home_phone, guardian2_work_phone, guardian2_cell_phone, guardian2_email
+   - referral_source_type, referral_source_name, referral_source_phone, referral_agency_name, referral_agency_address
+   - referral_reason_* fields (cognitive, language, gross_motor, fine_motor, social_emotional, self_help, other)
+   - referral_reason_details, referral_consent_on_file
+   - attends_childcare, childcare_centre, childcare_frequency
+   - attends_earlyon, earlyon_centre, earlyon_frequency
+   - agency_continuing_involvement
    - notes, discharge_reason
 
 3. **Visit Model:**
@@ -241,6 +247,36 @@ Comprehensive reporting dashboard with 8 reports accessible to supervisors, admi
 
 ## Recent Bug Fixes
 
+### Edit Child Phone Fields (Fixed: February 4, 2026)
+**Issue:** `edit_child` view and template used old single phone fields (guardian1_phone, guardian2_phone)
+
+**Root Cause:** 
+Migration 0008 split phone fields into home/work/cell but the edit form wasn't updated to match.
+
+**Fix Applied:**
+- Updated `core/views.py` edit_child function to handle split phone fields
+- Updated `templates/core/edit_child.html` to show 3 phone inputs per guardian
+- Now matches the add_child forms and database schema
+
+**Files Modified:** 
+- `c:\ISSProject2\core\views.py` (lines 400-406)
+- `c:\ISSProject2\templates\core\edit_child.html` (guardian sections)
+
+**Status:** ✅ Fixed and tested
+
+### Schema Migration Sync (Fixed: February 4, 2026)
+**Issue:** Migration 0008 existed in database but not in Django's migration history
+
+**Root Cause:** 
+Model changes were extensive but migration wasn't generated and tracked properly.
+
+**Fix Applied:**
+- Generated migration 0008 with `makemigrations`
+- Faked migration since database schema already matched
+- All migrations now in sync
+
+**Status:** ✅ Fixed and deployed to test server
+
 ### Discharge Child Functionality (Fixed: January 21, 2026)
 **Issue:** `CaseloadAssignment has no field named 'updated_by'`
 
@@ -268,8 +304,10 @@ Removed `updated_by=request.user` from the CaseloadAssignment update operation i
 - Discharge functionality now working
 
 ### Database Migrations
-Latest migration: `0005_rename_core_referr_child_i_7a3f92_idx_core_referr_child_i_2736d2_idx_and_more.py`
-- Converts 38 fields to encrypted equivalents
+Latest migration: `0008_remove_child_core_child_last_na_66f284_idx_and_more.py` (February 4, 2026)
+- Splits guardian phone fields into home_phone, work_phone, cell_phone for each guardian
+- Adds comprehensive referral tracking fields
+- Adds childcare and EarlyON attendance tracking
 - All migrations applied successfully
 
 ## Key Files & Locations
@@ -303,7 +341,7 @@ Latest migration: `0005_rename_core_referr_child_i_7a3f92_idx_core_referr_child_
 
 ### Performance
 - Minimal overhead observed from encryption
-- Application remains responsive
+- Application remall known bugs resolved as of February 4, 2026
 - No optimization needed at current scale
 
 ### Data Migration

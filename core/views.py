@@ -399,10 +399,14 @@ def edit_child(request, pk):
             
             # Guardian information
             child.guardian1_name = request.POST.get('guardian1_name', '').strip()
-            child.guardian1_phone = request.POST.get('guardian1_phone', '').strip()
+            child.guardian1_home_phone = request.POST.get('guardian1_home_phone', '').strip()
+            child.guardian1_work_phone = request.POST.get('guardian1_work_phone', '').strip()
+            child.guardian1_cell_phone = request.POST.get('guardian1_cell_phone', '').strip()
             child.guardian1_email = request.POST.get('guardian1_email', '').strip()
             child.guardian2_name = request.POST.get('guardian2_name', '').strip()
-            child.guardian2_phone = request.POST.get('guardian2_phone', '').strip()
+            child.guardian2_home_phone = request.POST.get('guardian2_home_phone', '').strip()
+            child.guardian2_work_phone = request.POST.get('guardian2_work_phone', '').strip()
+            child.guardian2_cell_phone = request.POST.get('guardian2_cell_phone', '').strip()
             child.guardian2_email = request.POST.get('guardian2_email', '').strip()
             
             # Centre
