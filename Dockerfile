@@ -58,11 +58,8 @@ RUN mkdir -p /app/staticfiles /app/media && \
     chown -R appuser:appuser /app
 
 # Copy entrypoint script
-COPY --chown=appuser:appuser docker-entrypoint.sh /app/
+COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
-
-# Switch to non-root user
-USER appuser
 
 # Expose port
 EXPOSE 8000

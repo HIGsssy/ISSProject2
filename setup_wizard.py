@@ -38,6 +38,15 @@ HTML_FORM = """
     
     <form method="POST">
         <div class="form-group">
+            <label>Environment Type</label>
+            <select name="environment" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="development">Development/Test (no SSL, allows HTTP)</option>
+                <option value="production">Production (requires SSL/HTTPS)</option>
+            </select>
+            <div class="help-text">Select "Development/Test" for testing without SSL certificates</div>
+        </div>
+        
+        <div class="form-group">
             <label>Allowed Hosts (optional)</label>
             <input type="text" name="allowed_hosts" placeholder="localhost,your-domain.com">
             <div class="help-text">Comma-separated list of domains. Leave blank to allow all (*)</div>
@@ -121,8 +130,12 @@ class SetupHandler(BaseHTTPRequestHandler):
         params = parse_qs(post_data)
         
         # Extract values
+        environment = params.get('environment', ['production'])[0].strip()
         allowed_hosts = params.get('allowed_hosts', ['*'])[0].strip() or '*'
         timezone = params.get('timezone', ['America/Toronto'])[0].strip() or 'America/Toronto'
+        
+        # Set DEBUG based on environment
+        debug_mode = 'True' if environment == 'development' else 'False'
         
         # Generate keys
         secret_key = secrets.token_urlsafe(50)
@@ -135,7 +148,7 @@ class SetupHandler(BaseHTTPRequestHandler):
         
         # Create .env file
         env_content = f"""SECRET_KEY={secret_key}
-DEBUG=False
+DEBUG={debug_mode}
 ALLOWED_HOSTS={allowed_hosts}
 POSTGRES_DB={db_name}
 POSTGRES_USER={db_user}
