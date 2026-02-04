@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   ISS Portal - Custom Theme & Component Styles
+   These styles work with CSS variables injected by the theme context processor
+   ============================================================================ */
+
+:root {
+  /* Default colors (overridden by theme context processor) */
+  --primary: #3b82f6;
+  --secondary: #8b5cf6;
+  --accent: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --text: #1f2937;
+  --bg: #ffffff;
+  --bg-opacity: 0.05;
+}
+
+/* Background image with opacity overlay */
+body.theme-background {
+  position: relative;
+  background-attachment: fixed;
+}
+
+body.theme-background::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: var(--bg-image, none);
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  opacity: var(--bg-opacity, 0.05);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Overall Status Badges */
+.overall-status-active {
+  @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white;
+  background-color: var(--accent, #10b981) !important;
+}
+
+.overall-status-discharged {
+  @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white;
+  background-color: #6b7280 !important;
+}
+
+/* Caseload Status Badges */
+.caseload-status-caseload {
+  @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white;
+  background-color: var(--primary, #3b82f6) !important;
+}
+
+.caseload-status-non_caseload {
+  @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white;
+  background-color: var(--secondary, #8b5cf6) !important;
+}
+
+.caseload-status-awaiting_assignment {
+  @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white;
+  background-color: var(--warning, #f59e0b) !important;
+}
+
+/* On Hold Badge */
+.on-hold-badge {
+  @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full;
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border: 2px solid #fbbf24 !important;
+}
+
+/* Flagged Items (7+ hour visits) */
+.flagged-item {
+  @apply bg-red-50 border-l-4;
+  border-left-color: var(--danger, #ef4444) !important;
+}
+
+.flagged-badge {
+  @apply px-2 py-1 text-xs font-semibold rounded text-white;
+  background-color: var(--danger, #ef4444) !important;
+}
+
+/* Form Enhancements */
+.form-input-focus {
+  @apply focus:ring-2 focus:ring-offset-2;
+  --tw-ring-color: var(--primary, #3b82f6);
+}
+
+/* Button Variants */
+.btn-primary {
+  @apply px-4 py-2 rounded-md font-medium text-white transition-colors;
+  background-color: var(--primary, #3b82f6);
+}
+
+.btn-primary:hover {
+  filter: brightness(0.9);
+}
+
+.btn-secondary {
+  @apply px-4 py-2 rounded-md font-medium text-white transition-colors;
+  background-color: var(--secondary, #8b5cf6);
+}
+
+.btn-secondary:hover {
+  filter: brightness(0.9);
+}
+
+/* Loading Spinner */
+.spinner {
+  @apply inline-block animate-spin;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #f3f4f6;
+  border-top-color: var(--primary, #3b82f6);
+  border-radius: 50%;
+}
+
+/* Cards with themed shadows */
+.card-themed {
+  @apply bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow;
+  border-top: 3px solid var(--primary, #3b82f6);
+}
+
+/* Navigation Active State */
+.nav-active {
+  @apply text-white;
+  background-color: var(--primary, #3b82f6);
+}
+
+/* Placeholder for missing logo - fallback styling */
+.logo-placeholder {
+  @apply text-lg font-bold;
+  color: var(--primary, #3b82f6);
+}
+
+/* Links with theme color */
+a.themed-link {
+  color: var(--primary, #3b82f6);
+  @apply hover:underline transition-colors;
+}
+
+a.themed-link:hover {
+  filter: brightness(0.9);
+}

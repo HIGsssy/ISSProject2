@@ -28,6 +28,8 @@ python-dateutil==2.8.2
 django-encrypted-model-fields==0.6.5
 cryptography==41.0.7
 
+# Image processing
+Pillow==10.1.0
 # Future SSO support (commented for initial release)
 # django-allauth==0.57.0
 # social-auth-app-django==5.4.0

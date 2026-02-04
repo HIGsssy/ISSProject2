@@ -288,6 +288,55 @@ docker stats
 
 ---
 
+## Development Setup - Tailwind CSS Building
+
+The application now uses production-grade Tailwind CSS with Node.js for CSS compilation. This is handled automatically in Docker, but for development, you can set up local CSS building.
+
+### Local CSS Development Setup (Optional)
+
+If developing locally outside Docker:
+
+**Prerequisites:**
+- Node.js 18.0 or higher ([download](https://nodejs.org/))
+- npm (included with Node.js)
+
+**Setup:**
+
+1. Install Node.js dependencies:
+```bash
+npm install
+```
+
+2. Build CSS (one-time):
+```bash
+npm run build:css
+```
+
+CSS will be generated to `staticfiles/css/style.css`
+
+3. Watch for changes (during development):
+```bash
+npm run watch:css
+```
+
+The watcher will rebuild CSS whenever you modify `static/css/input.css` or theme colors.
+
+### Using the Theme Rebuild Command
+
+To rebuild CSS after changing theme colors in the admin panel:
+
+```bash
+python manage.py rebuild_theme_css
+```
+
+Or to watch for changes:
+
+```bash
+python manage.py rebuild_theme_css --watch
+```
+
+---
+
 ## Support
 
 For issues or questions:
@@ -297,6 +346,6 @@ For issues or questions:
 
 ---
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Last Updated:** February 4, 2026  
-**Status:** Production Ready
+**Status:** Production Ready - Tailwind CSS Production Build Implemented

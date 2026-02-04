@@ -14,6 +14,9 @@ chown -R appuser:appuser /app/staticfiles /app/media
 echo "Running database migrations..."
 su appuser -c "python manage.py migrate --noinput"
 
+echo "Building Tailwind CSS..."
+npm run build:css 2>/dev/null || echo "Note: Tailwind CSS already compiled in Docker build stage"
+
 echo "Collecting static files..."
 su appuser -c "python manage.py collectstatic --noinput --clear"
 
