@@ -484,15 +484,19 @@ class ThemeAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Brand Colors', {
             'fields': ('primary_color', 'secondary_color', 'accent_color'),
-            'description': 'Define the main brand colors (hex format #RRGGBB)'
+            'description': 'Define the main brand colors'
         }),
         ('Status Colors', {
             'fields': ('success_color', 'warning_color', 'danger_color'),
             'description': 'Colors used for status indicators and feedback'
         }),
+        ('Header/Navbar', {
+            'fields': ('header_bg_color',),
+            'description': 'Customize header/navbar appearance'
+        }),
         ('Images & Branding', {
             'fields': ('logo_image', 'favicon', 'background_image'),
-            'description': 'Upload custom images for logo, favicon, and optional background'
+            'description': 'Upload custom images for logo, favicon, and optional background. Logo recommended: 200x100px or 350x200px'
         }),
         ('Text Customization', {
             'fields': ('site_title',),

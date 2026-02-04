@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
+from colorfield.fields import ColorField
 from encrypted_model_fields.fields import (
     EncryptedCharField,
     EncryptedTextField,
@@ -681,35 +682,35 @@ class ThemeSetting(models.Model):
     """
     
     # Primary brand colors
-    primary_color = models.CharField(
-        max_length=7, 
+    primary_color = ColorField(
         default='#3b82f6',
-        help_text='Primary brand color (hex format)'
+        help_text='Primary brand color'
     )
-    secondary_color = models.CharField(
-        max_length=7,
+    secondary_color = ColorField(
         default='#8b5cf6',
-        help_text='Secondary color (hex format)'
+        help_text='Secondary color'
     )
-    accent_color = models.CharField(
-        max_length=7,
+    accent_color = ColorField(
         default='#10b981',
-        help_text='Accent/success color (hex format)'
+        help_text='Accent/success color'
     )
-    success_color = models.CharField(
-        max_length=7,
+    success_color = ColorField(
         default='#10b981',
-        help_text='Success color (hex format)'
+        help_text='Success color'
     )
-    warning_color = models.CharField(
-        max_length=7,
+    warning_color = ColorField(
         default='#f59e0b',
-        help_text='Warning color (hex format)'
+        help_text='Warning color'
     )
-    danger_color = models.CharField(
-        max_length=7,
+    danger_color = ColorField(
         default='#ef4444',
-        help_text='Danger/error color (hex format)'
+        help_text='Danger/error color'
+    )
+    
+    # Header/navbar styling
+    header_bg_color = ColorField(
+        default='#ffffff',
+        help_text='Header/navbar background color'
     )
     
     # Images
