@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Centres - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Centres</h1>
+            <p class="text-gray-600 mt-1">Manage service centres and locations</p>
+        </div>
+        {% if user.is_superuser or user.role == 'admin' %}
+        <a 
+            href="{% url 'import_centres' %}" 
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium"
+        >
+            ↓ Import Centres
+        </a>
+        {% endif %}
+    </div>
+
+    {% if centres %}
+    <div class="bg-white border border-gray-200 rounded-lg shadow overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">City</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Phone</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for centre in centres %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ centre.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-700">{{ centre.address_line1 }}{% if centre.address_line2 %}<br>{{ centre.address_line2 }}{% endif %}</td>
+                    <td class="px-6 py-4 text-sm text-gray-700">{{ centre.city }}, {{ centre.province }} {{ centre.postal_code }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-700">{{ centre.phone }}</td>
+                    <td class="px-6 py-4 text-sm">
+                        <span class="px-3 py-1 rounded-full text-xs font-medium {% if centre.status == 'active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ centre.get_status_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-white border border-gray-200 rounded-lg shadow p-6 text-center">
+        <p class="text-gray-600 mb-4">No centres have been added yet.</p>
+        {% if user.is_superuser or user.role == 'admin' %}
+        <a 
+            href="{% url 'import_centres' %}" 
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium"
+        >
+            ↓ Import Centres
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

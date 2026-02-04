@@ -10,7 +10,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from .models import Child, Visit, Centre, VisitType, CaseloadAssignment, CommunityPartner, Referral
 from accounts.models import User
-from .utils.csv_import import ChildCSVImporter, CSVImportError
+from .utils.csv_import import ChildCSVImporter, CentreCSVImporter, CSVImportError
 
 
 @login_required
@@ -968,3 +968,144 @@ def download_children_template(request):
     response['Content-Disposition'] = 'attachment; filename="children_import_template.csv"'
     
     return response
+
+
+@login_required
+def import_centres(request):
+    """Import centres from CSV file."""
+    # Check permissions - only superusers and admins
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role == 'admin')):
+        raise PermissionDenied("You don't have permission to import centres.")
+    
+    if request.method == 'POST':
+        # Handle file upload and import
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file uploaded.')
+            return redirect('import_centres')
+        
+        csv_file = request.FILES['csv_file']
+        
+        # Validate file type
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Invalid file type. Please upload a CSV file.')
+            return redirect('import_centres')
+        
+        # Check file size (10MB limit)
+        if csv_file.size > 10 * 1024 * 1024:
+            messages.error(request, 'File too large. Maximum size is 10MB.')
+            return redirect('import_centres')
+        
+        try:
+            importer = CentreCSVImporter(csv_file, request.user)
+            result = importer.parse()
+            
+            # Store results in session for preview
+            request.session['import_preview'] = {
+                'valid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': row['data']
+                    }
+                    for row in result['valid']
+                ],
+                'invalid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': row['raw_data'],
+                        'errors': row['errors']
+                    }
+                    for row in result['invalid']
+                ],
+                'total': result['total'],
+                'import_type': 'centres'
+            }
+            
+            return redirect('import_centres_preview')
+            
+        except CSVImportError as e:
+            messages.error(request, f'CSV Import Error: {str(e)}')
+            return redirect('import_centres')
+        except Exception as e:
+            messages.error(request, f'Unexpected error: {str(e)}')
+            return redirect('import_centres')
+    
+    # GET request - show import form
+    return render(request, 'core/import_centres.html', {
+        'page_title': 'Import Centres',
+    })
+
+
+@login_required
+def import_centres_preview(request):
+    """Preview CSV import before confirming."""
+    # Check permissions
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role == 'admin')):
+        raise PermissionDenied("You don't have permission to import centres.")
+    
+    if request.method == 'POST':
+        # Confirm import
+        preview = request.session.get('import_preview', {})
+        
+        if not preview.get('valid'):
+            messages.error(request, 'No valid rows to import.')
+            return redirect('import_centres')
+        
+        try:
+            importer = CentreCSVImporter(None, request.user)
+            result = importer.import_rows(preview['valid'])
+            
+            messages.success(request, f"Successfully imported {result['created']} centres.")
+            
+            if result['errors']:
+                for error in result['errors']:
+                    messages.warning(request, f"Row {error['row_num']}: {error['error']}")
+            
+            # Clean up session
+            if 'import_preview' in request.session:
+                del request.session['import_preview']
+            
+            return redirect('centre_list')
+            
+        except Exception as e:
+            messages.error(request, f'Import error: {str(e)}')
+            return redirect('import_centres')
+    
+    # GET request - show preview
+    preview = request.session.get('import_preview', {})
+    
+    if not preview:
+        messages.error(request, 'No import preview available. Please upload a CSV file first.')
+        return redirect('import_centres')
+    
+    return render(request, 'core/import_centres_preview.html', {
+        'page_title': 'Import Centres Preview',
+        'valid_rows': preview.get('valid', []),
+        'invalid_rows': preview.get('invalid', []),
+        'total_rows': preview.get('total', 0),
+    })
+
+
+@login_required
+def download_centres_template(request):
+    """Download CSV template for importing centres."""
+    # Generate template
+    template_content = CentreCSVImporter.get_import_template()
+    
+    # Create response
+    response = HttpResponse(template_content, content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="centres_import_template.csv"'
+    
+    return response
+
+
+@login_required
+def centre_list(request):
+    """List all centres."""
+    centres = Centre.objects.all().order_by('name')
+    
+    context = {
+        'page_title': 'Centres',
+        'centres': centres,
+    }
+    
+    return render(request, 'core/centre_list.html', context)
