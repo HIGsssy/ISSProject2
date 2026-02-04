@@ -2,7 +2,7 @@
 **Last Updated: February 4, 2026**
 
 ## Project Overview
-Django-based web application for managing children's services with staff caseload management, visit tracking, centre management, comprehensive reporting, custom theming, and CSV import capabilities.
+Django-based web application for managing children's services with staff caseload management, visit tracking, centre management, comprehensive reporting with staff-scoped access, custom theming, and CSV import capabilities.
 
 **Technology Stack:**
 - Django 4.2.9
@@ -12,7 +12,79 @@ Django-based web application for managing children's services with staff caseloa
 - Nginx reverse proxy
 - Tailwind CSS 3.4 (production-compiled)
 
-## Latest Implementation: Centre Management & Custom Theming (February 4, 2026)
+## Latest Implementation: Phase 7 - Staff-Scoped Reporting (February 4, 2026)
+
+### Staff Reporting Access Control
+
+**Problem Solved:**
+- Staff members (front-line workers) had no access to view their own visit data
+- Supervisors/Admins could see all reports but staff had no visibility
+- Staff required a way to track their own hours and visits
+
+**Solution Implemented:**
+
+**Permission Architecture:**
+- Updated `can_access_reports` property in `accounts/models.py` to include `'staff'` role
+- Updated `can_access_reports()` function in `reports/views.py` to include `'staff'` role
+- Both checks must be synchronized to prevent login redirect loops
+
+**Visits Report Filtering:**
+- Modified `visits_report()` view to detect staff users with pattern: `user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'`
+- Staff auto-filters to view only their own visits: `Visit.objects.filter(staff=request.user)`
+- Staff cannot override filter via URL parameters (silently ignored in view)
+- Staff can still filter by: date range, child, centre, visit type
+- CSV export button hidden for staff users (permission restriction via `if export_format == 'csv' and not user_is_staff`)
+
+**Dashboard Restrictions:**
+- Modified `reports_dashboard()` view to pass `user_is_staff` context variable
+- Updated `templates/reports/dashboard.html` to conditionally render reports:
+  - Staff users see: Only "Visits Report" card
+  - Supervisors/Admins see: All 9 report cards (Children Served, Visits, Staff Summary, Caseload, Age Out, Month Added, Staff Site Visits, Site Visit Summary)
+- Dashboard page title and description change based on user role
+
+**UI/Template Updates:**
+- `templates/reports/visits_report.html` enhancements for staff:
+  - Blue info box explaining staff can only view own visits
+  - Staff filter dropdown hidden (cannot change staff assignment)
+  - Staff column removed from table (redundant for staff view)
+  - CSV export button replaced with permission message
+  - Dynamic table colspan based on user role (6 for staff, 7 for others)
+- `templates/reports/dashboard.html` conditional rendering:
+  - All non-visits reports wrapped in `{% if not user_is_staff %}...{% endif %}`
+  - Dashboard subtitle changes based on role
+
+**Navigation:**
+- Staff users now see "Reports" link in navigation menu
+- Link points to reports dashboard with auto-filtered visits view
+- No separate staff-only report page needed
+
+**Result:**
+- ✅ Staff can access reports without login loop
+- ✅ Staff see only their own visit data automatically
+- ✅ Staff cannot bypass filters or view sensitive reports
+- ✅ Staff can filter by date, child, centre for their visits
+- ✅ CSV export disabled for staff users
+- ✅ Dashboard shows only appropriate reports for staff role
+- ✅ Permission architecture is synchronized and secure
+
+**Files Modified:**
+- `accounts/models.py` - Added `'staff'` to `can_access_reports` property
+- `reports/views.py` - Added `'staff'` to `can_access_reports()` function, staff detection and auto-filtering in `visits_report()`, staff context in `reports_dashboard()`
+- `templates/reports/visits_report.html` - Staff-specific info box, hidden controls, hidden columns, disabled CSV
+- `templates/reports/dashboard.html` - Conditional rendering of non-visits reports
+
+**Testing Verified:**
+- ✅ Staff login doesn't redirect loop
+- ✅ Reports navigation link visible to staff
+- ✅ Staff dashboard shows only Visits Report
+- ✅ Visits report auto-filters to staff member's visits
+- ✅ Staff can filter by date, child, centre
+- ✅ CSV export hidden from staff
+- ✅ Supervisor/Admin sees all reports unchanged
+
+---
+
+## Previous Implementation: Centre Management & Custom Theming (February 4, 2026)
 
 ### A. Production Tailwind CSS Compilation
 

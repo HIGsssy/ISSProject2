@@ -8,7 +8,7 @@ A containerized Django application for managing children's inclusion support ser
 - **Child Management**: Track children with optional centre associations and non-caseload support
 - **Visit Tracking**: Mobile-friendly visit logging with time validation and 7-hour flagging
 - **Caseload Management**: Primary and secondary staff assignments with full history
-- **Reporting**: Comprehensive reports for supervisors and admins with CSV export
+- **Reporting**: Comprehensive reports with role-based access (Staff view own visits, Supervisors/Admins see all reports with CSV export)
 - **Audit Logging**: Complete change tracking for all key entities
 - **Centre Management**: View centre contact information, bulk import via CSV (admin/supervisor only)
 - **Custom Theming**: Customizable logo, colors, site title, and header styling via admin interface
@@ -128,7 +128,9 @@ For local development without Docker:
 - View all children
 - Maintain "My Caseload" list (primary assignments + visited children)
 - Create and edit own visit records
+- View own visits in Reports dashboard (filtered automatically)
 - Cannot manage users or reassign caseloads
+- Cannot access other reports or override visit filters
 
 ### Supervisor
 - Full read/write access to children, centres, visits

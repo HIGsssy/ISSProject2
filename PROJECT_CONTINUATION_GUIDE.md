@@ -1,6 +1,6 @@
 # ISS Portal - Project Continuation Guide
 **Last Updated:** February 4, 2026  
-**Project Status:** Fully Operational - Phase 6 Centre Management & Theming Complete
+**Project Status:** Fully Operational - Phase 7 Staff-Scoped Reporting Complete
 
 ---
 
@@ -19,10 +19,11 @@
 12. [Docker Configuration](#docker-configuration)
 13. [Custom Theming System](#custom-theming-system)
 14. [Centre Management](#centre-management)
-15. [Recent Bug Fixes](#recent-bug-fixes)
-16. [Testing Checklist](#testing-checklist)
-17. [Known Considerations](#known-considerations)
-18. [Development Commands](#development-commands)
+15. [Staff-Scoped Reporting (Phase 7)](#staff-scoped-reporting-phase-7)
+16. [Recent Bug Fixes](#recent-bug-fixes)
+17. [Testing Checklist](#testing-checklist)
+18. [Known Considerations](#known-considerations)
+19. [Development Commands](#development-commands)
 
 ---
 
@@ -798,6 +799,161 @@ Located in `core/utils/csv_import.py`
 ### Permissions
 - List: All authenticated users can view
 - Import: superuser or role == 'admin' only
+
+---
+
+## Staff-Scoped Reporting (Phase 7)
+
+### Overview
+Staff (front-line workers) now have secure access to view their own visit data through the Reports system, with automatic filtering and restricted access to sensitive organizational reports.
+
+### Permission System
+
+**Two-Layer Architecture (Critical):**
+
+1. **View-Level Permission** (`reports/views.py`):
+   ```python
+   def can_access_reports(user):
+       return user.is_superuser or user.role in ['staff', 'supervisor', 'admin', 'auditor']
+   ```
+   - Controls access to report views via `@user_passes_test` decorator
+   - Added `'staff'` role to allow staff access
+
+2. **Template-Level Permission** (`accounts/models.py`):
+   ```python
+   @property
+   def can_access_reports(self):
+       return self.is_superuser or self.role in ['staff', 'supervisor', 'admin', 'auditor']
+   ```
+   - Controls "Reports" link visibility in navigation
+   - Must be synchronized with view-level check to prevent login loops
+
+**Important:** Both checks MUST include identical role lists. Mismatched permissions cause redirect loops.
+
+### Staff Detection Pattern
+Used consistently across views and templates:
+```python
+user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'
+```
+
+### Visits Report Filtering
+
+**Modified `visits_report()` View Behavior:**
+
+**For Staff Users:**
+- Auto-filters: `Visit.objects.filter(staff=request.user)`
+- Sees only their own visits (cannot change via URL parameter)
+- Can filter by: date range, child, centre, visit type
+- Cannot export to CSV (button hidden, backend validation)
+- Sees info box explaining restrictions
+- Staff column hidden from table (redundant)
+- Staff filter dropdown hidden
+
+**For Supervisors/Admins:**
+- Sees all visits (unchanged behavior)
+- Can filter by any staff member
+- Can export to CSV
+- Can see staff column in table
+- All controls visible and functional
+
+**Implementation Details:**
+```python
+# In visits_report() view
+user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'
+
+# Force staff ID for staff users (URL parameter silently ignored)
+if user_is_staff:
+    staff_id = request.user.id
+
+# Disable CSV export for staff
+if export_format == 'csv' and not user_is_staff:
+    # Generate CSV
+else:
+    # Continue to HTML view
+
+# Pass to template
+context = {
+    'user_is_staff': user_is_staff,
+    'current_staff_name': request.user.get_full_name(),
+}
+```
+
+### Dashboard Report Filtering
+
+**Staff Dashboard:**
+- Shows ONLY "Visits Report" card
+- Other 8 report cards completely hidden via `{% if not user_is_staff %}` conditionals
+- Prevents staff from discovering sensitive reports
+- Page subtitle changes: "View your visit records and hours"
+
+**Supervisor/Admin Dashboard:**
+- Shows all 9 report cards (unchanged):
+  1. Children Served Report
+  2. Visits Report
+  3. Staff Summary Report
+  4. Caseload Report
+  5. Age Out Report
+  6. Month Added Report
+  7. Staff Site Visits Report
+  8. Site Visit Summary Report
+- Page subtitle: "Generate and view various reports for the ISS Portal"
+
+**Hidden Reports for Staff:**
+- Cannot be accessed directly (404 with permission check)
+- Cannot be discovered via dashboard
+- Cannot be guessed via URL patterns
+
+### Template Changes
+
+**visits_report.html:**
+- Blue info box explaining staff restrictions (conditional)
+- Staff filter dropdown hidden for staff (conditional)
+- Staff column hidden from visit table for staff (conditional)
+- CSV export button replaced with permission message for staff (conditional)
+- Dynamic table colspan: 6 for staff, 7 for others
+
+**dashboard.html:**
+- Page subtitle changes based on user role
+- All non-visits reports wrapped in `{% if not user_is_staff %}...{% endif %}`
+- Each report card conditionally rendered
+
+### Files Modified
+1. `accounts/models.py` - Added `'staff'` to can_access_reports property
+2. `reports/views.py` - Added `'staff'` to can_access_reports() function, staff detection and filtering logic
+3. `templates/reports/visits_report.html` - Staff-specific UI adjustments
+4. `templates/reports/dashboard.html` - Conditional report rendering
+
+### Security Architecture
+
+**Multi-Layer Defense:**
+1. **View-Level:** Permission decorator blocks unauthorized access
+2. **Query-Level:** Django ORM filters by staff user ID
+3. **URL-Level:** Parameters silently ignored for staff (no error page leakage)
+4. **Template-Level:** UI elements hidden to prevent discovery
+5. **Permission-Level:** CSV export disabled at both template and view level
+
+**What Staff Cannot Access:**
+- Other staff member's visits
+- Staff summary reports
+- Caseload metrics
+- Age out projections
+- Organization-wide analytics
+- CSV exports
+- Bulk download capabilities
+
+### Navigation Changes
+- "Reports" link now visible to staff users (was previously hidden)
+- Points to Reports Dashboard
+- Only shows "Visits Report" card after navigation
+
+### Testing Verification
+- ✅ Staff can access Reports without login loop
+- ✅ Staff dashboard shows only Visits Report
+- ✅ Visits report auto-filters to staff member's visits
+- ✅ Staff cannot override filters via URL parameters
+- ✅ CSV export hidden and blocked for staff
+- ✅ Supervisor/Admin sees all reports unchanged
+- ✅ All conditional templates render correctly
 
 ---
 
