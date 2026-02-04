@@ -1,6 +1,6 @@
 """
 Views for reports generation.
-Only accessible by supervisors, admins, and auditors.
+Accessible by staff, supervisors, admins, and auditors.
 """
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -20,7 +20,7 @@ def can_access_reports(user):
     if user.is_superuser:
         return True
     if hasattr(user, 'role'):
-        return user.role in ['supervisor', 'admin', 'auditor']
+        return user.role in ['staff', 'supervisor', 'admin', 'auditor']
     return False
 
 
@@ -28,8 +28,11 @@ def can_access_reports(user):
 @user_passes_test(can_access_reports)
 def reports_dashboard(request):
     """Main reports dashboard."""
+    user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'
+    
     context = {
         'page_title': 'Reports Dashboard',
+        'user_is_staff': user_is_staff,
     }
     return render(request, 'reports/dashboard.html', context)
 
@@ -39,6 +42,9 @@ def reports_dashboard(request):
 def visits_report(request):
     """Generate visits report with filtering options."""
     
+    # Determine if current user is staff (not supervisor/admin/auditor)
+    user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'
+    
     # Get filter parameters
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -46,6 +52,10 @@ def visits_report(request):
     staff_id = request.GET.get('staff')
     centre_id = request.GET.get('centre')
     export_format = request.GET.get('export')
+    
+    # Force staff users to view only their own visits (ignore any staff parameter)
+    if user_is_staff:
+        staff_id = str(request.user.id)
     
     # Build queryset
     visits = Visit.objects.select_related('child', 'staff', 'centre', 'visit_type')
@@ -67,8 +77,8 @@ def visits_report(request):
     total_hours = sum([v.calculate_duration() or 0 for v in visits])
     flagged_count = visits.filter(flagged_for_review=True).count()
     
-    # Export to CSV if requested
-    if export_format == 'csv':
+    # Export to CSV if requested (not available for staff users)
+    if export_format == 'csv' and not user_is_staff:
         return export_visits_csv(visits)
     
     # Get filter options
@@ -90,7 +100,9 @@ def visits_report(request):
             'child_id': child_id,
             'staff_id': staff_id,
             'centre_id': centre_id,
-        }
+        },
+        'user_is_staff': user_is_staff,
+        'current_staff_name': request.user.get_full_name(),
     }
     
     return render(request, 'reports/visits_report.html', context)
