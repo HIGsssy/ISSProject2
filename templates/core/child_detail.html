@@ -10,10 +10,18 @@
             <p class="mt-2 text-gray-600">Child Record Details</p>
         </div>
         <div class="flex items-center space-x-3">
-            <span class="status-badge status-{{ child.status }}">
-                {{ child.get_status_display }}
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full overall-status-{{ child.overall_status }}">
+                {{ child.get_overall_status_display }}
             </span>
-            {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %}
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full caseload-status-{{ child.caseload_status }}">
+                {{ child.get_caseload_status_display }}
+            </span>
+            {% if child.on_hold %}
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full on-hold-badge">
+                On Hold
+            </span>
+            {% endif %}
+            {% if user.is_superuser or user.role == 'supervisor' or user.role == 'admin' %}
                 <a href="{% url 'edit_child' child.pk %}" 
                    class="inline-flex items-center px-3 py-2 border border-blue-300 text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,7 +31,7 @@
                 </a>
             {% endif %}
             {% if user.is_superuser or user.role == 'supervisor' or user.role == 'admin' %}
-                {% if child.status != 'discharged' %}
+                {% if child.overall_status != 'discharged' %}
                 <a href="{% url 'discharge_child' child.pk %}" 
                    class="inline-flex items-center px-3 py-2 border border-red-300 text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                     <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +46,7 @@
 </div>
 
 <!-- Discharge Information (if discharged) -->
-{% if child.status == 'discharged' %}
+{% if child.overall_status == 'discharged' %}
 <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
     <div class="flex">
         <div class="flex-shrink-0">
@@ -78,16 +86,229 @@
                 <dd class="mt-1 text-sm text-gray-900">{{ child.centre.name|default:"Not assigned" }}</dd>
             </div>
             <div>
-                <dt class="text-sm font-medium text-gray-500">Guardian</dt>
+                <dt class="text-sm font-medium text-gray-500">Guardian 1 Name</dt>
                 <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_name|default:"N/A" }}</dd>
             </div>
             <div>
-                <dt class="text-sm font-medium text-gray-500">Guardian Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_phone|default:"N/A" }}</dd>
+                <dt class="text-sm font-medium text-gray-500">Guardian 1 Cell Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_cell_phone|default:"N/A" }}</dd>
             </div>
         </dl>
     </div>
 </div>
+
+<!-- Referral Reasons - Visible to All Staff -->
+{% if child.referral_reason_cognitive or child.referral_reason_language or child.referral_reason_gross_motor or child.referral_reason_fine_motor or child.referral_reason_social_emotional or child.referral_reason_self_help or child.referral_reason_other %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Referral Reasons</h3>
+    </div>
+    <div class="px-4 py-5 sm:p-6">
+        <div class="flex flex-wrap gap-2 mb-4">
+            {% if child.referral_reason_cognitive %}<span class="px-3 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full">Cognitive</span>{% endif %}
+            {% if child.referral_reason_language %}<span class="px-3 py-1 text-sm font-medium bg-purple-100 text-purple-800 rounded-full">Language</span>{% endif %}
+            {% if child.referral_reason_gross_motor %}<span class="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">Gross Motor</span>{% endif %}
+            {% if child.referral_reason_fine_motor %}<span class="px-3 py-1 text-sm font-medium bg-yellow-100 text-yellow-800 rounded-full">Fine Motor</span>{% endif %}
+            {% if child.referral_reason_social_emotional %}<span class="px-3 py-1 text-sm font-medium bg-pink-100 text-pink-800 rounded-full">Social/Emotional</span>{% endif %}
+            {% if child.referral_reason_self_help %}<span class="px-3 py-1 text-sm font-medium bg-indigo-100 text-indigo-800 rounded-full">Self-help</span>{% endif %}
+            {% if child.referral_reason_other %}<span class="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-800 rounded-full">Other</span>{% endif %}
+        </div>
+        {% if child.referral_reason_details and user.role == 'supervisor' or user.role == 'admin' or user.is_superuser %}
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <dt class="text-sm font-medium text-gray-500 mb-2">Details:</dt>
+            <dd class="text-sm text-gray-900 whitespace-pre-wrap">{{ child.referral_reason_details }}</dd>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Full Details Section - Supervisor/Admin Only -->
+{% if user.is_superuser or user.role == 'supervisor' or user.role == 'admin' %}
+<div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6 border-b border-blue-200 bg-white">
+        <div class="flex items-center">
+            <svg class="h-5 w-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Full Intake Details</h3>
+            <span class="ml-3 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">Supervisor/Admin Only</span>
+        </div>
+    </div>
+    
+    <!-- Address Information -->
+    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
+        <h4 class="text-md font-semibold text-gray-800 mb-3">Address Information</h4>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+            {% if child.address_line1 %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Address</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {{ child.address_line1 }}
+                    {% if child.address_line2 %}<br>{{ child.address_line2 }}{% endif %}
+                    {% if child.city or child.postal_code %}
+                    <br>{% if child.city %}{{ child.city }}{% endif %}{% if child.city and child.postal_code %}, {% endif %}{% if child.postal_code %}{{ child.postal_code }}{% endif %}
+                    {% endif %}
+                </dd>
+            </div>
+            {% endif %}
+            {% if child.alternate_location %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Alternate Location</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ child.alternate_location }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+    
+    <!-- Guardian 1 Full Details -->
+    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
+        <h4 class="text-md font-semibold text-gray-800 mb-3">Guardian 1 - Complete Contact Info</h4>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Name</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_name|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Email</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_email|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Home Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_home_phone|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Work Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_work_phone|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Cell Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_cell_phone|default:"N/A" }}</dd>
+            </div>
+        </dl>
+    </div>
+    
+    <!-- Guardian 2 Full Details -->
+    {% if child.guardian2_name %}
+    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
+        <h4 class="text-md font-semibold text-gray-800 mb-3">Guardian 2 - Complete Contact Info</h4>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Name</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_name }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Email</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_email|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Home Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_home_phone|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Work Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_work_phone|default:"N/A" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Cell Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_cell_phone|default:"N/A" }}</dd>
+            </div>
+        </dl>
+    </div>
+    {% endif %}
+    
+    <!-- Referral Source Details -->
+    {% if child.referral_source_type %}
+    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
+        <h4 class="text-md font-semibold text-gray-800 mb-3">Referral Source Information</h4>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Referred By</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if child.referral_source_type == 'parent_guardian' %}Parent/Guardian{% else %}Other Agency{% endif %}
+                </dd>
+            </div>
+            {% if child.referral_source_name %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Contact Name</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.referral_source_name }}</dd>
+            </div>
+            {% endif %}
+            {% if child.referral_source_phone %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Contact Phone</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.referral_source_phone }}</dd>
+            </div>
+            {% endif %}
+            {% if child.referral_agency_name %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Agency Name</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ child.referral_agency_name }}</dd>
+            </div>
+            {% endif %}
+            {% if child.referral_agency_address %}
+            <div class="sm:col-span-2">
+                <dt class="text-sm font-medium text-gray-500">Agency Address</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ child.referral_agency_address }}</dd>
+            </div>
+            {% endif %}
+            {% if child.agency_continuing_involvement %}
+            <div class="sm:col-span-2">
+                <span class="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">✓ Agency Continuing Involvement</span>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+    {% endif %}
+    
+    <!-- Program Attendance -->
+    {% if child.attends_childcare or child.attends_earlyon %}
+    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
+        <h4 class="text-md font-semibold text-gray-800 mb-3">Program Attendance</h4>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+            {% if child.attends_childcare %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Licensed Childcare</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    <span class="font-medium text-green-600">✓ Attending</span>
+                    {% if child.childcare_centre %}<br>Centre: {{ child.childcare_centre.name }}{% endif %}
+                    {% if child.childcare_frequency %}<br>Frequency: {{ child.childcare_frequency }}{% endif %}
+                </dd>
+            </div>
+            {% endif %}
+            {% if child.attends_earlyon %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500">EarlyON Program</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    <span class="font-medium text-green-600">✓ Attending</span>
+                    {% if child.earlyon_centre %}<br>Centre: {{ child.earlyon_centre.name }}{% endif %}
+                    {% if child.earlyon_frequency %}<br>Frequency: {{ child.earlyon_frequency }}{% endif %}
+                </dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+    {% endif %}
+    
+    <!-- Consent Status -->
+    <div class="px-4 py-4 sm:px-6 bg-white">
+        <h4 class="text-md font-semibold text-gray-800 mb-3">Consent & Documentation</h4>
+        <div class="flex items-center">
+            {% if child.referral_consent_on_file %}
+            <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm font-medium text-green-700">Referral consent form on file</span>
+            {% else %}
+            <svg class="h-5 w-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm font-medium text-yellow-700">Referral consent form status unknown</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Notes Section -->
 {% if child.notes %}
@@ -150,91 +371,92 @@
     </div>
 </div>
 
-<!-- Referrals Section -->
-<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-        <div class="flex justify-between items-center mb-3">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Community Partner Referrals</h3>
-            {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %}
-            <a href="{% url 'add_referral' child.pk %}" 
-               class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Add Referral
-            </a>
-            {% endif %}
-        </div>
-        
-        <!-- Filter Tabs -->
-        <div class="flex space-x-2 border-b border-gray-200">
-            <a href="?referral_status=active" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'active' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Active
-            </a>
-            <a href="?referral_status=completed" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'completed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Completed
-            </a>
-            <a href="?referral_status=closed" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'closed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                Closed
-            </a>
-            <a href="?referral_status=all" 
-               class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'all' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                All
-            </a>
-        </div>
-    </div>
-    <div class="px-4 py-5 sm:p-6">
-        {% if referrals %}
-        <ul class="divide-y divide-gray-200">
-            {% for referral in referrals %}
-            <li class="py-4">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center">
-                            <p class="text-sm font-medium text-gray-900">
-                                {{ referral.community_partner.name }}
-                            </p>
-                            <span class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                {% if referral.status == 'pending' %}bg-yellow-100 text-yellow-800
-                                {% elif referral.status == 'accepted' %}bg-blue-100 text-blue-800
-                                {% elif referral.status == 'completed' %}bg-green-100 text-green-800
-                                {% elif referral.status == 'declined' %}bg-red-100 text-red-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ referral.get_status_display }}
-                            </span>
-                        </div>
-                        <p class="mt-1 text-sm text-gray-500">
-                            {{ referral.community_partner.get_partner_type_display }}
-                        </p>
-                        <p class="mt-1 text-sm text-gray-600">
-                            {{ referral.reason|truncatewords:20 }}
-                        </p>
-                        <div class="mt-2 flex items-center text-xs text-gray-500">
-                            <span>Referred by {{ referral.referred_by.get_full_name }}</span>
-                            <span class="mx-2">•</span>
-                            <span>{{ referral.referral_date }}</span>
-                        </div>
-                    </div>
-                    {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %}
-                    <div class="ml-4">
-                        <a href="{% url 'edit_referral' referral.pk %}" 
-                           class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
-                            Edit
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-sm text-gray-500 text-center py-4">No referrals yet.</p>
-        {% endif %}
-    </div>
-</div>
+{# Referrals Section - Temporarily Disabled #}
+{# <!-- Referrals Section --> #}
+{# <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6"> #}
+{#     <div class="px-4 py-5 sm:px-6 border-b border-gray-200"> #}
+{#         <div class="flex justify-between items-center mb-3"> #}
+{#             <h3 class="text-lg leading-6 font-medium text-gray-900">Community Partner Referrals</h3> #}
+{#             {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %} #}
+{#             <a href="{% url 'add_referral' child.pk %}"  #}
+{#                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"> #}
+{#                 <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"> #}
+{#                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path> #}
+{#                 </svg> #}
+{#                 Add Referral #}
+{#             </a> #}
+{#             {% endif %} #}
+{#         </div> #}
+{#          #}
+{#         <!-- Filter Tabs --> #}
+{#         <div class="flex space-x-2 border-b border-gray-200"> #}
+{#             <a href="?referral_status=active"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'active' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 Active #}
+{#             </a> #}
+{#             <a href="?referral_status=completed"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'completed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 Completed #}
+{#             </a> #}
+{#             <a href="?referral_status=closed"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'closed' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 Closed #}
+{#             </a> #}
+{#             <a href="?referral_status=all"  #}
+{#                class="px-3 py-2 text-sm font-medium {% if referral_status_filter == 'all' %}text-blue-600 border-b-2 border-blue-500{% else %}text-gray-500 hover:text-gray-700{% endif %}"> #}
+{#                 All #}
+{#             </a> #}
+{#         </div> #}
+{#     </div> #}
+{#     <div class="px-4 py-5 sm:p-6"> #}
+{#         {% if referrals %} #}
+{#         <ul class="divide-y divide-gray-200"> #}
+{#             {% for referral in referrals %} #}
+{#             <li class="py-4"> #}
+{#                 <div class="flex items-start justify-between"> #}
+{#                     <div class="flex-1"> #}
+{#                         <div class="flex items-center"> #}
+{#                             <p class="text-sm font-medium text-gray-900"> #}
+{#                                 {{ referral.community_partner.name }} #}
+{#                             </p> #}
+{#                             <span class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full  #}
+{#                                 {% if referral.status == 'pending' %}bg-yellow-100 text-yellow-800 #}
+{#                                 {% elif referral.status == 'accepted' %}bg-blue-100 text-blue-800 #}
+{#                                 {% elif referral.status == 'completed' %}bg-green-100 text-green-800 #}
+{#                                 {% elif referral.status == 'declined' %}bg-red-100 text-red-800 #}
+{#                                 {% else %}bg-gray-100 text-gray-800{% endif %}"> #}
+{#                                 {{ referral.get_status_display }} #}
+{#                             </span> #}
+{#                         </div> #}
+{#                         <p class="mt-1 text-sm text-gray-500"> #}
+{#                             {{ referral.community_partner.get_partner_type_display }} #}
+{#                         </p> #}
+{#                         <p class="mt-1 text-sm text-gray-600"> #}
+{#                             {{ referral.reason|truncatewords:20 }} #}
+{#                         </p> #}
+{#                         <div class="mt-2 flex items-center text-xs text-gray-500"> #}
+{#                             <span>Referred by {{ referral.referred_by.get_full_name }}</span> #}
+{#                             <span class="mx-2">•</span> #}
+{#                             <span>{{ referral.referral_date }}</span> #}
+{#                         </div> #}
+{#                     </div> #}
+{#                     {% if user.is_superuser or user.role == 'staff' or user.role == 'supervisor' or user.role == 'admin' %} #}
+{#                     <div class="ml-4"> #}
+{#                         <a href="{% url 'edit_referral' referral.pk %}"  #}
+{#                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"> #}
+{#                             Edit #}
+{#                         </a> #}
+{#                     </div> #}
+{#                     {% endif %} #}
+{#                 </div> #}
+{#             </li> #}
+{#             {% endfor %} #}
+{#         </ul> #}
+{#         {% else %} #}
+{#         <p class="text-sm text-gray-500 text-center py-4">No referrals yet.</p> #}
+{#         {% endif %} #}
+{#     </div> #}
+{# </div> #}
 
 <!-- Recent Visits -->
 <div class="bg-white shadow overflow-hidden sm:rounded-lg">

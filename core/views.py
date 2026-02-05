@@ -7,8 +7,10 @@ from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from .models import Child, Visit, Centre, VisitType, CaseloadAssignment, CommunityPartner, Referral
 from accounts.models import User
+from .utils.csv_import import ChildCSVImporter, CentreCSVImporter, CSVImportError
 
 
 @login_required
@@ -25,7 +27,7 @@ def dashboard(request):
         from django.utils import timezone
         
         # Total active children
-        active_children_count = Child.objects.filter(status='active').count()
+        active_children_count = Child.objects.filter(overall_status='active').count()
         
         # Visits in last 30 days
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
@@ -88,7 +90,8 @@ def my_caseload(request):
     base_filter = {
         'caseload_assignments__staff': user,
         'caseload_assignments__unassigned_at__isnull': True,
-        'status__in': ['active', 'on_hold']  # Exclude discharged and non-caseload
+        'overall_status': 'active',
+        'caseload_status': 'caseload'
     }
     
     # Add primary/secondary filter
@@ -131,10 +134,20 @@ def all_children(request):
     """View all children."""
     children = Child.objects.select_related('centre').prefetch_related('caseload_assignments__staff')
     
-    # Apply status filter if provided
-    status_filter = request.GET.get('status')
-    if status_filter:
-        children = children.filter(status=status_filter)
+    # Apply filters
+    overall_status_filter = request.GET.get('overall_status', 'active')
+    if overall_status_filter != 'all':
+        children = children.filter(overall_status=overall_status_filter)
+    
+    caseload_status_filter = request.GET.get('caseload_status', 'all')
+    if caseload_status_filter != 'all':
+        children = children.filter(caseload_status=caseload_status_filter)
+    
+    on_hold_filter = request.GET.get('on_hold', 'all')
+    if on_hold_filter == 'yes':
+        children = children.filter(on_hold=True)
+    elif on_hold_filter == 'no':
+        children = children.filter(on_hold=False)
     
     # Apply search if provided
     search = request.GET.get('search')
@@ -147,7 +160,9 @@ def all_children(request):
     
     context = {
         'children': children,
-        'status_filter': status_filter,
+        'overall_status_filter': overall_status_filter,
+        'caseload_status_filter': caseload_status_filter,
+        'on_hold_filter': on_hold_filter,
         'search': search,
         'view_type': 'all',
     }
@@ -158,7 +173,10 @@ def all_children(request):
 @login_required
 def non_caseload_children(request):
     """View all non-caseload children."""
-    children = Child.objects.filter(status='non_caseload').select_related('centre')
+    children = Child.objects.filter(
+        overall_status='active',
+        caseload_status='non_caseload'
+    ).select_related('centre')
     
     context = {
         'children': children,
@@ -217,9 +235,23 @@ def add_visit(request):
         return redirect('dashboard')
     
     # Get form data
-    children = Child.objects.filter(
-        Q(status__in=['active', 'on_hold', 'non_caseload'])
-    ).order_by('last_name', 'first_name')
+    # Filter children based on user role
+    user = request.user
+    is_supervisor_or_admin = user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])
+    
+    if is_supervisor_or_admin:
+        # Supervisors and admins can see all active children
+        children = Child.objects.filter(
+            overall_status='active'
+        ).order_by('last_name', 'first_name')
+    else:
+        # Staff can only see children in their caseload
+        children = Child.objects.filter(
+            caseload_assignments__staff=user,
+            caseload_assignments__unassigned_at__isnull=True,
+            overall_status='active',
+            caseload_status='caseload'
+        ).distinct().order_by('last_name', 'first_name')
     
     centres = Centre.objects.filter(status='active').order_by('name')
     visit_types = VisitType.objects.filter(is_active=True).order_by('name')
@@ -227,14 +259,18 @@ def add_visit(request):
     # Pre-select child if provided in URL
     child_id = request.GET.get('child_id')
     selected_child = None
+    selected_centre = None
     if child_id:
         selected_child = Child.objects.filter(pk=child_id).first()
+        if selected_child and selected_child.centre:
+            selected_centre = selected_child.centre
     
     context = {
         'children': children,
         'centres': centres,
         'visit_types': visit_types,
         'selected_child': selected_child,
+        'selected_centre': selected_centre,
     }
     
     return render(request, 'core/add_visit.html', context)
@@ -294,7 +330,7 @@ def edit_visit(request, pk):
     
     # Get form data
     children = Child.objects.filter(
-        Q(status__in=['active', 'on_hold', 'non_caseload'])
+        overall_status='active'
     ).order_by('last_name', 'first_name')
     
     centres = Centre.objects.filter(status='active').order_by('name')
@@ -312,30 +348,26 @@ def edit_visit(request, pk):
 
 @login_required
 def add_child(request):
-    """Add a new child."""
+    """Add a new child - Multi-step intake form (Supervisors and Admins only)."""
     user = request.user
     
-    # Check permissions
-    if not (user.is_superuser or (hasattr(user, 'role') and user.role in ['staff', 'supervisor', 'admin'])):
+    # Check permissions - only supervisors and admins can add children
+    if not (user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])):
         return redirect('dashboard')
     
     if request.method == 'POST':
         # This will be handled by the frontend/API
         return redirect('all_children')
     
-    # Get staff members for assignment (only for supervisors/admins)
-    staff_members = None
-    is_supervisor_or_admin = user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])
-    
-    if is_supervisor_or_admin:
-        staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
-    
+    # Get staff members for assignment
+    staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
     centres = Centre.objects.filter(status='active').order_by('name')
+    earlyon_centres = centres.filter(name__icontains='early')  # Filter centres with "early" in name
     
     context = {
         'centres': centres,
+        'earlyon_centres': earlyon_centres,
         'staff_members': staff_members,
-        'is_supervisor_or_admin': is_supervisor_or_admin,
     }
     
     return render(request, 'core/add_child.html', context)
@@ -367,10 +399,14 @@ def edit_child(request, pk):
             
             # Guardian information
             child.guardian1_name = request.POST.get('guardian1_name', '').strip()
-            child.guardian1_phone = request.POST.get('guardian1_phone', '').strip()
+            child.guardian1_home_phone = request.POST.get('guardian1_home_phone', '').strip()
+            child.guardian1_work_phone = request.POST.get('guardian1_work_phone', '').strip()
+            child.guardian1_cell_phone = request.POST.get('guardian1_cell_phone', '').strip()
             child.guardian1_email = request.POST.get('guardian1_email', '').strip()
             child.guardian2_name = request.POST.get('guardian2_name', '').strip()
-            child.guardian2_phone = request.POST.get('guardian2_phone', '').strip()
+            child.guardian2_home_phone = request.POST.get('guardian2_home_phone', '').strip()
+            child.guardian2_work_phone = request.POST.get('guardian2_work_phone', '').strip()
+            child.guardian2_cell_phone = request.POST.get('guardian2_cell_phone', '').strip()
             child.guardian2_email = request.POST.get('guardian2_email', '').strip()
             
             # Centre
@@ -380,10 +416,15 @@ def edit_child(request, pk):
             else:
                 child.centre = None
             
-            # Status (excluding discharged - use discharge workflow for that)
-            new_status = request.POST.get('status')
-            if new_status and new_status != 'discharged':
-                child.status = new_status
+            # Caseload status (only for supervisors/admins)
+            is_supervisor_or_admin = request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])
+            if is_supervisor_or_admin:
+                new_caseload_status = request.POST.get('caseload_status')
+                if new_caseload_status and child.overall_status == 'active':
+                    child.caseload_status = new_caseload_status
+            
+            # On hold status
+            child.on_hold = request.POST.get('on_hold') == 'on'
             
             # Notes
             child.notes = request.POST.get('notes', '').strip()
@@ -401,17 +442,14 @@ def edit_child(request, pk):
     # Get centres for dropdown
     centres = Centre.objects.filter(status='active').order_by('name')
     
-    # Define available statuses (excluding discharged)
-    available_statuses = [
-        ('active', 'Active'),
-        ('on_hold', 'On Hold'),
-        ('non_caseload', 'Non-Caseload'),
-    ]
+    # Check if user is supervisor/admin
+    is_supervisor_or_admin = request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])
     
     context = {
         'child': child,
         'centres': centres,
-        'available_statuses': available_statuses,
+        'is_supervisor_or_admin': is_supervisor_or_admin,
+        'caseload_status_choices': Child.CASELOAD_STATUS_CHOICES,
     }
     
     return render(request, 'core/edit_child.html', context)
@@ -459,12 +497,12 @@ def discharge_child(request, pk):
     """Discharge a child from services."""
     child = get_object_or_404(Child, pk=pk)
     
-    # Check permissions - only supervisors and admins can discharge
-    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])):
+    # Check permissions - staff, supervisors, and admins can discharge
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['staff', 'supervisor', 'admin'])):
         raise PermissionDenied("You don't have permission to discharge children.")
     
     # Prevent discharging already discharged children
-    if child.status == 'discharged':
+    if child.overall_status == 'discharged':
         messages.warning(request, f'{child.full_name} is already discharged.')
         return redirect('child_detail', pk=child.pk)
     
@@ -479,7 +517,9 @@ def discharge_child(request, pk):
         else:
             try:
                 # Update child status and info
-                child.status = 'discharged'
+                child.overall_status = 'discharged'
+                child.caseload_status = 'non_caseload'
+                child.on_hold = False
                 child.discharge_reason = discharge_reason
                 child.end_date = discharge_date
                 child.updated_by = request.user
@@ -754,3 +794,318 @@ def referrals_management(request):
         'staff_members': staff_members,
     }
     return render(request, 'core/referrals_management.html', context)
+
+
+@login_required
+def import_children(request):
+    """Import children from CSV file."""
+    # Check permissions - only supervisors and admins
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])):
+        raise PermissionDenied("You don't have permission to import children.")
+    
+    if request.method == 'POST':
+        # Handle file upload and import
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file uploaded.')
+            return redirect('import_children')
+        
+        csv_file = request.FILES['csv_file']
+        
+        # Validate file type
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Invalid file type. Please upload a CSV file.')
+            return redirect('import_children')
+        
+        # Check file size (10MB limit)
+        if csv_file.size > 10 * 1024 * 1024:
+            messages.error(request, 'File too large. Maximum size is 10MB.')
+            return redirect('import_children')
+        
+        try:
+            importer = ChildCSVImporter(csv_file, request.user)
+            result = importer.parse()
+            
+            # Store results in session for preview
+            request.session['import_preview'] = {
+                'valid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': {k: str(v) if not isinstance(v, (str, int, type(None))) else v 
+                                for k, v in row['data'].items() if k != 'centre'},
+                        'centre_name': row['data'].get('centre').name if row['data'].get('centre') else ''
+                    }
+                    for row in result['valid']
+                ],
+                'invalid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': row['raw_data'],
+                        'errors': row['errors']
+                    }
+                    for row in result['invalid']
+                ],
+                'total': result['total']
+            }
+            
+            # Check for duplicates
+            duplicates = importer.check_duplicates()
+            request.session['import_duplicates'] = [
+                {
+                    'row_num': dup['row_num'],
+                    'name': dup['name'],
+                    'dob': str(dup['dob']),
+                    'existing_id': dup['existing_id']
+                }
+                for dup in duplicates
+            ]
+            
+            return redirect('import_children_preview')
+            
+        except CSVImportError as e:
+            messages.error(request, f'CSV Import Error: {str(e)}')
+            return redirect('import_children')
+        except Exception as e:
+            messages.error(request, f'Unexpected error: {str(e)}')
+            return redirect('import_children')
+    
+    # GET request - show upload form
+    return render(request, 'core/import_children.html')
+
+
+@login_required
+def import_children_preview(request):
+    """Preview CSV import before confirming."""
+    # Check permissions - only supervisors and admins
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])):
+        raise PermissionDenied("You don't have permission to import children.")
+    
+    # Get preview data from session
+    preview_data = request.session.get('import_preview')
+    duplicates = request.session.get('import_duplicates', [])
+    
+    if not preview_data:
+        messages.error(request, 'No import preview available. Please upload a CSV file first.')
+        return redirect('import_children')
+    
+    if request.method == 'POST':
+        # Handle confirmed import
+        skip_duplicates = request.POST.get('skip_duplicates') == 'on'
+        
+        # Need to re-parse the file stored in session
+        # For simplicity, we'll reconstruct CSV from session data
+        try:
+            import io
+            import csv
+            
+            # Reconstruct CSV content from valid rows
+            output = io.StringIO()
+            valid_rows = preview_data['valid']
+            
+            if valid_rows:
+                # Write header
+                headers = list(valid_rows[0]['data'].keys())
+                if valid_rows[0].get('centre_name'):
+                    headers.append('centre')
+                
+                writer = csv.DictWriter(output, fieldnames=headers)
+                writer.writeheader()
+                
+                # Write data rows
+                for row in valid_rows:
+                    row_data = row['data'].copy()
+                    if row.get('centre_name'):
+                        row_data['centre'] = row['centre_name']
+                    writer.writerow(row_data)
+                
+                # Create file-like object
+                output.seek(0)
+                from django.core.files.uploadedfile import SimpleUploadedFile
+                csv_content = output.getvalue().encode('utf-8')
+                csv_file = SimpleUploadedFile("import.csv", csv_content, content_type="text/csv")
+                
+                # Import records
+                importer = ChildCSVImporter(csv_file, request.user)
+                importer.parse()  # Re-parse to get proper objects
+                result = importer.import_records(skip_duplicates=skip_duplicates)
+                
+                # Clear session data
+                del request.session['import_preview']
+                if 'import_duplicates' in request.session:
+                    del request.session['import_duplicates']
+                
+                # Show results
+                if result['created'] > 0:
+                    messages.success(request, f"Successfully imported {result['created']} child record(s).")
+                if result['skipped'] > 0:
+                    messages.info(request, f"Skipped {result['skipped']} duplicate record(s).")
+                if result['errors']:
+                    messages.warning(request, f"{len(result['errors'])} record(s) failed to import.")
+                
+                return redirect('all_children')
+                
+        except Exception as e:
+            messages.error(request, f'Import failed: {str(e)}')
+            return redirect('import_children')
+    
+    # GET request - show preview
+    context = {
+        'preview': preview_data,
+        'duplicates': duplicates,
+        'has_duplicates': len(duplicates) > 0
+    }
+    
+    return render(request, 'core/import_children_preview.html', context)
+
+
+@login_required
+def download_children_template(request):
+    """Download CSV template for importing children."""
+    # Generate template
+    template_content = ChildCSVImporter.generate_template()
+    
+    # Create response
+    response = HttpResponse(template_content, content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="children_import_template.csv"'
+    
+    return response
+
+
+@login_required
+def import_centres(request):
+    """Import centres from CSV file."""
+    # Check permissions - only superusers and admins
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role == 'admin')):
+        raise PermissionDenied("You don't have permission to import centres.")
+    
+    if request.method == 'POST':
+        # Handle file upload and import
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file uploaded.')
+            return redirect('import_centres')
+        
+        csv_file = request.FILES['csv_file']
+        
+        # Validate file type
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Invalid file type. Please upload a CSV file.')
+            return redirect('import_centres')
+        
+        # Check file size (10MB limit)
+        if csv_file.size > 10 * 1024 * 1024:
+            messages.error(request, 'File too large. Maximum size is 10MB.')
+            return redirect('import_centres')
+        
+        try:
+            importer = CentreCSVImporter(csv_file, request.user)
+            result = importer.parse()
+            
+            # Store results in session for preview
+            request.session['import_preview'] = {
+                'valid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': row['data']
+                    }
+                    for row in result['valid']
+                ],
+                'invalid': [
+                    {
+                        'row_num': row['row_num'],
+                        'data': row['raw_data'],
+                        'errors': row['errors']
+                    }
+                    for row in result['invalid']
+                ],
+                'total': result['total'],
+                'import_type': 'centres'
+            }
+            
+            return redirect('import_centres_preview')
+            
+        except CSVImportError as e:
+            messages.error(request, f'CSV Import Error: {str(e)}')
+            return redirect('import_centres')
+        except Exception as e:
+            messages.error(request, f'Unexpected error: {str(e)}')
+            return redirect('import_centres')
+    
+    # GET request - show import form
+    return render(request, 'core/import_centres.html', {
+        'page_title': 'Import Centres',
+    })
+
+
+@login_required
+def import_centres_preview(request):
+    """Preview CSV import before confirming."""
+    # Check permissions
+    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role == 'admin')):
+        raise PermissionDenied("You don't have permission to import centres.")
+    
+    if request.method == 'POST':
+        # Confirm import
+        preview = request.session.get('import_preview', {})
+        
+        if not preview.get('valid'):
+            messages.error(request, 'No valid rows to import.')
+            return redirect('import_centres')
+        
+        try:
+            importer = CentreCSVImporter(None, request.user)
+            result = importer.import_rows(preview['valid'])
+            
+            messages.success(request, f"Successfully imported {result['created']} centres.")
+            
+            if result['errors']:
+                for error in result['errors']:
+                    messages.warning(request, f"Row {error['row_num']}: {error['error']}")
+            
+            # Clean up session
+            if 'import_preview' in request.session:
+                del request.session['import_preview']
+            
+            return redirect('centre_list')
+            
+        except Exception as e:
+            messages.error(request, f'Import error: {str(e)}')
+            return redirect('import_centres')
+    
+    # GET request - show preview
+    preview = request.session.get('import_preview', {})
+    
+    if not preview:
+        messages.error(request, 'No import preview available. Please upload a CSV file first.')
+        return redirect('import_centres')
+    
+    return render(request, 'core/import_centres_preview.html', {
+        'page_title': 'Import Centres Preview',
+        'valid_rows': preview.get('valid', []),
+        'invalid_rows': preview.get('invalid', []),
+        'total_rows': preview.get('total', 0),
+    })
+
+
+@login_required
+def download_centres_template(request):
+    """Download CSV template for importing centres."""
+    # Generate template
+    template_content = CentreCSVImporter.get_import_template()
+    
+    # Create response
+    response = HttpResponse(template_content, content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="centres_import_template.csv"'
+    
+    return response
+
+
+@login_required
+def centre_list(request):
+    """List all centres."""
+    centres = Centre.objects.all().order_by('name')
+    
+    context = {
+        'page_title': 'Centres',
+        'centres': centres,
+    }
+    
+    return render(request, 'core/centre_list.html', context)

@@ -4,14 +4,16 @@ This guide covers installation, configuration, auto-start setup, monitoring, and
 
 ## Table of Contents
 1. [Server Requirements](#server-requirements)
-2. [Initial Installation](#initial-installation)
-3. [Configuration](#configuration)
-4. [Auto-Start on Boot](#auto-start-on-boot)
-5. [Management Commands](#management-commands)
-6. [Monitoring & Maintenance](#monitoring--maintenance)
-7. [Upgrades](#upgrades)
-8. [Backup & Restore](#backup--restore)
-9. [Troubleshooting](#troubleshooting)
+2. [Package-Based Installation](#package-based-installation)
+3. [Initial Installation](#initial-installation)
+4. [Configuration](#configuration)
+5. [Auto-Start on Boot](#auto-start-on-boot)
+6. [Management Commands](#management-commands)
+7. [Monitoring & Maintenance](#monitoring--maintenance)
+8. [Upgrades](#upgrades)
+9. [Backup & Restore](#backup--restore)
+10. [Production Deployment](#production-deployment)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -33,6 +35,52 @@ This guide covers installation, configuration, auto-start setup, monitoring, and
 - **Small organization** (500 children): ~100 MB/year
 - **Medium organization** (2000 children): ~500 MB/year
 - **Large organization** (5000+ children): ~1-2 GB/year
+
+---
+
+## Package-Based Installation
+
+The ISS Portal is distributed as a self-contained deployment package that includes everything needed to run the application in Docker containers.
+
+### Building a Deployment Package
+
+If you have access to the source code, you can build a deployment package:
+
+```bash
+# Build package with version number
+./build-package.sh 1.0.0
+
+# Or build with date-based version
+./build-package.sh
+
+# The script creates:
+# - dist/iss-portal-vX.X.X.tar.gz (deployment package)
+# - dist/iss-portal-vX.X.X.tar.gz.sha256 (checksum)
+# - dist/iss-portal-vX.X.X-RELEASE_NOTES.txt (documentation)
+```
+
+### Package Contents
+
+The deployment package includes:
+- Complete Django application (all apps and dependencies)
+- Docker and Docker Compose configuration files
+- Nginx reverse proxy configuration
+- Deployment and management scripts
+- Database migration scripts
+- Comprehensive documentation
+- Systemd service file for auto-start
+- Quick installation script
+
+### Package Verification
+
+Before deploying, verify the package integrity:
+
+```bash
+# Verify SHA256 checksum
+sha256sum -c iss-portal-vX.X.X.tar.gz.sha256
+
+# Should output: iss-portal-vX.X.X.tar.gz: OK
+```
 
 ---
 
@@ -67,14 +115,41 @@ docker compose version
 sudo mkdir -p /opt/iss-portal
 cd /opt/iss-portal
 
-# Extract package (replace with actual version)
-sudo tar -xzf iss-portal-v1.0.0.tar.gz -C /opt/iss-portal --strip-components=1
+# Extract package (replace X.X.X with your version)
+sudo tar -xzf ~/iss-portal-vX.X.X.tar.gz -C /opt/iss-portal --strip-components=1
 
 # Set permissions
 sudo chown -R $USER:$USER /opt/iss-portal
+
+# Verify extraction
+ls -la
+
+# You should see:
+# - accounts/, audit/, core/, iss_portal/, nginx/, reports/, static/, templates/
+# - docker-compose.yml, Dockerfile, requirements.txt
+# - deploy.sh, backup.sh, start.sh, stop.sh, status.sh, upgrade.sh
+# - DEPLOYMENT.md, README.md, MANIFEST.txt, VERSION
+# - install.sh (quick installation script)
 ```
 
-### Step 3: Configure Environment
+### Step 3: Quick Installation Option
+
+For a guided installation experience:
+
+```bash
+# Run the quick installation script
+chmod +x install.sh
+./install.sh
+
+# The script will:
+# 1. Check for Docker and Docker Compose
+# 2. Create .env file from template
+# 3. Prompt you to configure .env
+# 4. Make all scripts executable
+# 5. Optionally run full deployment
+```
+
+### Step 3 (Alternative): Manual Configuration
 
 ```bash
 # Copy environment template
@@ -1064,7 +1139,123 @@ docker-compose logs certbot
 docker-compose run --rm certbot renew --force-renewal
 ```
 
-### Security Hardening
+---
+
+## Production Deployment
+
+For production environments, use the production-optimized Docker Compose configuration.
+
+### Production Configuration File
+
+The `docker-compose.prod.yml` file extends the base configuration with:
+- **Enhanced logging** with rotation (10MB max, 3-5 files)
+- **Resource limits** for CPU and memory
+- **Production-optimized Gunicorn** settings
+- **Security hardening** (removed port exposures)
+- **Always restart** policy for reliability
+- **Enhanced health checks** with longer intervals
+
+### Deploying to Production
+
+```bash
+# Deploy using both compose files
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Or create an alias for convenience
+alias docker-compose-prod='docker-compose -f docker-compose.yml -f docker-compose.prod.yml'
+
+# Then use:
+docker-compose-prod up -d
+docker-compose-prod ps
+docker-compose-prod logs
+```
+
+### Production Gunicorn Configuration
+
+The production config uses optimized Gunicorn settings:
+
+```yaml
+--workers 4              # Number of worker processes
+--threads 2              # Threads per worker
+--worker-class gthread   # Threaded worker class
+--worker-tmp-dir /dev/shm  # Use shared memory for better performance
+--timeout 120            # Request timeout
+--max-requests 1000      # Restart workers after N requests (prevents memory leaks)
+--max-requests-jitter 50 # Add jitter to prevent simultaneous restarts
+--keep-alive 5           # Keep-alive timeout
+```
+
+### Production Resource Limits
+
+Configured limits per service:
+
+**Database:**
+- CPU: 0.5-2.0 cores
+- Memory: 512MB-2GB
+
+**Web Application:**
+- CPU: 0.5-2.0 cores
+- Memory: 512MB-2GB
+
+**Nginx:**
+- CPU: 0.25-1.0 cores
+- Memory: 128MB-512MB
+
+Adjust these limits in `docker-compose.prod.yml` based on your server capacity.
+
+### Production Volume Configuration
+
+The production config uses bind mounts for the database volume:
+
+```yaml
+volumes:
+  iss_postgres_data:
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/iss-portal/data
+```
+
+Create the directory before deployment:
+
+```bash
+sudo mkdir -p /var/lib/iss-portal/data
+sudo chown -R 999:999 /var/lib/iss-portal/data  # PostgreSQL UID/GID
+```
+
+### Production Logging
+
+View production logs with compression:
+
+```bash
+# View all logs
+docker-compose-prod logs --tail=100
+
+# View specific service
+docker-compose-prod logs web --tail=100 -f
+
+# Check log file sizes
+docker inspect iss_portal_web --format='{{.HostConfig.LogConfig}}'
+```
+
+Log files are automatically rotated when they reach 10MB, keeping up to 3-5 historical files.
+
+### Production Monitoring
+
+Monitor resource usage:
+
+```bash
+# Container stats
+docker stats
+
+# System resource usage
+docker-compose-prod ps
+docker-compose-prod top
+```
+
+---
+
+## Security Hardening
 
 #### Firewall Configuration
 

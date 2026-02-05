@@ -37,10 +37,23 @@ db.sqlite3-journal
 # Docker
 docker-compose.override.yml
 
+# Docker Hub deployment (excluded from Git package)
+docker-compose.hub.yml
+setup_wizard.py
+push-to-dockerhub.sh
+DOCKERHUB_DEPLOYMENT.md
+SELF_CONFIGURING_DOCKER.md
+
 # SSL Certificates (development)
 nginx/ssl/*.key
 nginx/ssl/*.crt
 nginx/ssl/*.pem
+
+# Node.js and Tailwind CSS build
+node_modules/
+package-lock.json
+staticfiles/css/style.css
+static/css/output.css
 
 # Backup files
 *.bak

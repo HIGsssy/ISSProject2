@@ -13,11 +13,17 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
+from colorfield.fields import ColorField
 from encrypted_model_fields.fields import (
     EncryptedCharField,
     EncryptedTextField,
     EncryptedEmailField
 )
+
+
+def get_today():
+    """Return today's date (not datetime) for DateField defaults."""
+    return timezone.now().date()
 
 
 class Centre(models.Model):
@@ -70,11 +76,15 @@ class Centre(models.Model):
 class Child(models.Model):
     """Children receiving inclusion support services."""
     
-    STATUS_CHOICES = [
+    OVERALL_STATUS_CHOICES = [
         ('active', 'Active'),
-        ('on_hold', 'On Hold'),
         ('discharged', 'Discharged'),
+    ]
+    
+    CASELOAD_STATUS_CHOICES = [
+        ('caseload', 'Caseload'),
         ('non_caseload', 'Non-Caseload'),
+        ('awaiting_assignment', 'Awaiting Assignment'),
     ]
     
     # Basic information - encrypted
@@ -88,33 +98,100 @@ class Child(models.Model):
     city = EncryptedCharField(max_length=100, blank=True)
     province = EncryptedCharField(max_length=50, blank=True, default='ON')
     postal_code = EncryptedCharField(max_length=10, blank=True)
+    alternate_location = EncryptedTextField(blank=True, help_text='Location if different than mailing address')
     
-    # Guardian information - encrypted
+    # Guardian 1 information - encrypted
     guardian1_name = EncryptedCharField(max_length=200, blank=True)
-    guardian1_phone = EncryptedCharField(max_length=20, blank=True)
+    guardian1_home_phone = EncryptedCharField(max_length=20, blank=True)
+    guardian1_work_phone = EncryptedCharField(max_length=20, blank=True)
+    guardian1_cell_phone = EncryptedCharField(max_length=20, blank=True)
     guardian1_email = EncryptedEmailField(blank=True)
+    
+    # Guardian 2 information - encrypted
     guardian2_name = EncryptedCharField(max_length=200, blank=True, verbose_name='Second Guardian Name')
-    guardian2_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Phone')
+    guardian2_home_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Home Phone')
+    guardian2_work_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Work Phone')
+    guardian2_cell_phone = EncryptedCharField(max_length=20, blank=True, verbose_name='Second Guardian Cell Phone')
     guardian2_email = EncryptedEmailField(blank=True, verbose_name='Second Guardian Email')
     
-    # Optional centre association
+    # Referral source information - encrypted
+    REFERRAL_SOURCE_CHOICES = [
+        ('parent_guardian', 'Parent/Guardian'),
+        ('other_agency', 'Other Agency'),
+    ]
+    referral_source_type = models.CharField(max_length=20, choices=REFERRAL_SOURCE_CHOICES, blank=True)
+    referral_source_name = EncryptedCharField(max_length=200, blank=True, help_text='Name of person/contact referring')
+    referral_source_phone = EncryptedCharField(max_length=20, blank=True)
+    referral_agency_name = EncryptedCharField(max_length=200, blank=True, help_text='Agency name (if other_agency)')
+    referral_agency_address = EncryptedTextField(blank=True, help_text='Agency address (if other_agency)')
+    
+    # Reason for referral - encrypted details
+    referral_reason_cognitive = models.BooleanField(default=False)
+    referral_reason_language = models.BooleanField(default=False)
+    referral_reason_gross_motor = models.BooleanField(default=False)
+    referral_reason_fine_motor = models.BooleanField(default=False)
+    referral_reason_social_emotional = models.BooleanField(default=False)
+    referral_reason_self_help = models.BooleanField(default=False)
+    referral_reason_other = models.BooleanField(default=False)
+    referral_reason_details = EncryptedTextField(blank=True, help_text='Details about referral reasons')
+    
+    # Program attendance
+    attends_childcare = models.BooleanField(default=False, help_text='Attending licensed childcare')
+    childcare_centre = models.ForeignKey(
+        Centre,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='childcare_children',
+        help_text='Childcare centre (if attending)'
+    )
+    childcare_frequency = EncryptedCharField(max_length=100, blank=True, help_text='How often attending childcare')
+    
+    attends_earlyon = models.BooleanField(default=False, help_text='Attending EarlyON Child and Family Center')
+    earlyon_centre = models.ForeignKey(
+        Centre,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='earlyon_children',
+        help_text='EarlyON centre (if attending)'
+    )
+    earlyon_frequency = EncryptedCharField(max_length=100, blank=True, help_text='How often attending EarlyON')
+    
+    agency_continuing_involvement = models.BooleanField(default=False, help_text='Referring agency continuing involvement')
+    referral_consent_on_file = models.BooleanField(default=False, help_text='Referral consent form on file')
+    
+    # Optional centre association (for caseload tracking)
     centre = models.ForeignKey(
         Centre,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='children',
-        help_text='Current centre (can be empty for non-caseload children)'
+        help_text='Current centre for caseload (can be empty for non-caseload children)'
     )
     
-    status = models.CharField(
+    # Status fields
+    overall_status = models.CharField(
         max_length=20,
-        choices=STATUS_CHOICES,
+        choices=OVERALL_STATUS_CHOICES,
         default='active',
-        help_text='Non-caseload children will not appear in staff caseloads'
+        help_text='Overall status of the child'
     )
     
-    start_date = models.DateField(default=timezone.now)
+    caseload_status = models.CharField(
+        max_length=20,
+        choices=CASELOAD_STATUS_CHOICES,
+        default='awaiting_assignment',
+        help_text='Caseload assignment status'
+    )
+    
+    on_hold = models.BooleanField(
+        default=False,
+        help_text='Indicates if child is temporarily on hold (not actively seen)'
+    )
+    
+    start_date = models.DateField(default=get_today)
     end_date = models.DateField(
         null=True,
         blank=True,
@@ -150,10 +227,6 @@ class Child(models.Model):
         ordering = ['last_name', 'first_name']
         verbose_name = 'Child'
         verbose_name_plural = 'Children'
-        indexes = [
-            models.Index(fields=['status']),
-            models.Index(fields=['last_name', 'first_name']),
-        ]
     
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -174,9 +247,29 @@ class Child(models.Model):
         return age
     
     @property
+    def is_active(self):
+        """Check if child is active (not discharged)."""
+        return self.overall_status == 'active'
+    
+    @property
+    def is_discharged(self):
+        """Check if child is discharged."""
+        return self.overall_status == 'discharged'
+    
+    @property
+    def is_in_caseload(self):
+        """Check if child is in caseload."""
+        return self.caseload_status == 'caseload'
+    
+    @property
     def is_non_caseload(self):
         """Check if child is non-caseload."""
-        return self.status == 'non_caseload'
+        return self.caseload_status == 'non_caseload'
+    
+    @property
+    def is_awaiting_assignment(self):
+        """Check if child is awaiting assignment."""
+        return self.caseload_status == 'awaiting_assignment'
     
     def get_primary_staff(self):
         """Get the primary staff member assigned to this child."""
@@ -216,13 +309,17 @@ class Visit(models.Model):
     
     The centre field captures the child's centre at time of visit creation
     and does not update if the child's centre changes later.
+    
+    For site visits (without a child), the child field is null.
     """
     
     child = models.ForeignKey(
         Child,
         on_delete=models.PROTECT,
         related_name='visits',
-        help_text='Child who received the visit'
+        null=True,
+        blank=True,
+        help_text='Child who received the visit (null for site visits)'
     )
     
     staff = models.ForeignKey(
@@ -284,10 +381,16 @@ class Visit(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.child.full_name} - {self.visit_date} ({self.staff.get_full_name()})"
+        if self.child:
+            return f"{self.child.full_name} - {self.visit_date} ({self.staff.get_full_name()})"
+        return f"Site Visit - {self.visit_date} ({self.staff.get_full_name()})"
     
     def clean(self):
         """Validate visit data."""
+        # At least one of child or centre must be specified
+        if not self.child and not self.centre:
+            raise ValidationError('Either a child or a centre must be specified for the visit.')
+        
         if self.start_time and self.end_time:
             if self.end_time <= self.start_time:
                 raise ValidationError({
@@ -521,3 +624,144 @@ class Referral(models.Model):
     
     def __str__(self):
         return f"{self.child.full_name} → {self.community_partner.name} ({self.referral_date})"
+
+
+# Signal handlers for auto-updating caseload_status
+from django.db.models.signals import post_save, post_delete, pre_save
+from django.dispatch import receiver
+
+
+@receiver(post_save, sender=CaseloadAssignment)
+def update_child_caseload_status_on_assign(sender, instance, created, **kwargs):
+    """Auto-update child caseload_status when staff is assigned."""
+    if instance.unassigned_at is None:  # Active assignment
+        child = instance.child
+        # Only update if child is active and not already in caseload
+        if child.overall_status == 'active' and child.caseload_status != 'caseload':
+            child.caseload_status = 'caseload'
+            child.save(update_fields=['caseload_status'])
+
+
+@receiver(pre_save, sender=CaseloadAssignment)
+def update_child_caseload_status_on_unassign(sender, instance, **kwargs):
+    """Update child caseload_status when assignment is unassigned."""
+    if instance.pk:  # Existing assignment
+        try:
+            old_instance = CaseloadAssignment.objects.get(pk=instance.pk)
+            # If being unassigned (was None, now has value)
+            if old_instance.unassigned_at is None and instance.unassigned_at is not None:
+                child = instance.child
+                # Check if child has any other active assignments
+                other_assignments = child.caseload_assignments.filter(
+                    unassigned_at__isnull=True
+                ).exclude(pk=instance.pk).exists()
+                
+                if not other_assignments and child.overall_status == 'active' and child.caseload_status == 'caseload':
+                    child.caseload_status = 'awaiting_assignment'
+                    child.save(update_fields=['caseload_status'])
+        except CaseloadAssignment.DoesNotExist:
+            pass
+
+
+@receiver(post_delete, sender=CaseloadAssignment)
+def update_child_caseload_status_on_delete(sender, instance, **kwargs):
+    """Update child caseload_status when assignment is deleted."""
+    child = instance.child
+    # Check if child has any other active assignments
+    has_assignments = child.caseload_assignments.filter(unassigned_at__isnull=True).exists()
+    
+    if not has_assignments and child.overall_status == 'active' and child.caseload_status == 'caseload':
+        child.caseload_status = 'awaiting_assignment'
+        child.save(update_fields=['caseload_status'])
+
+
+class ThemeSetting(models.Model):
+    """
+    Singleton model for global UI theme customization.
+    Only one instance should exist - accessed via ThemeSetting.objects.get_theme()
+    """
+    
+    # Primary brand colors
+    primary_color = ColorField(
+        default='#3b82f6',
+        help_text='Primary brand color'
+    )
+    secondary_color = ColorField(
+        default='#8b5cf6',
+        help_text='Secondary color'
+    )
+    accent_color = ColorField(
+        default='#10b981',
+        help_text='Accent/success color'
+    )
+    success_color = ColorField(
+        default='#10b981',
+        help_text='Success color'
+    )
+    warning_color = ColorField(
+        default='#f59e0b',
+        help_text='Warning color'
+    )
+    danger_color = ColorField(
+        default='#ef4444',
+        help_text='Danger/error color'
+    )
+    
+    # Header/navbar styling
+    header_bg_color = ColorField(
+        default='#ffffff',
+        help_text='Header/navbar background color'
+    )
+    
+    # Images
+    logo_image = models.ImageField(
+        upload_to='theme/',
+        blank=True,
+        help_text='Logo image displayed in navbar (recommended: 200x100px or 350x200px for best appearance)'
+    )
+    favicon = models.ImageField(
+        upload_to='theme/',
+        blank=True,
+        help_text='Favicon image (recommended: 32x32px or square)'
+    )
+    background_image = models.ImageField(
+        upload_to='theme/',
+        blank=True,
+        help_text='Optional background image'
+    )
+    
+    # Text customization
+    site_title = models.CharField(
+        max_length=100,
+        default='Inclusion Support Services Portal',
+        help_text='Site title shown in navbar and page title'
+    )
+    
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Theme Settings'
+        verbose_name_plural = 'Theme Settings'
+    
+    def __str__(self):
+        return 'ISS Portal Theme'
+    
+    @classmethod
+    def get_theme(cls):
+        """
+        Singleton pattern: Get or create the theme settings instance.
+        Returns: ThemeSetting instance (always id=1)
+        """
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+    
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists by forcing id=1."""
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    @staticmethod
+    def delete(*args, **kwargs):
+        """Prevent deletion of the singleton instance."""
+        pass

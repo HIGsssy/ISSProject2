@@ -86,8 +86,8 @@ class User(AbstractUser):
     
     @property
     def can_access_reports(self):
-        """Supervisors, admins, and auditors can access reports."""
-        return self.role in ['supervisor', 'admin', 'auditor']
+        """Staff, supervisors, admins, and auditors can access reports."""
+        return self.role in ['staff', 'supervisor', 'admin', 'auditor']
     
     @property
     def can_bulk_assign(self):

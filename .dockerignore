@@ -1,0 +1,91 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist-info
+build
+develop-eggs
+.eggs
+
+# Virtual environments
+venv
+env
+ENV
+.venv
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation (not needed in image)
+*.md
+!README.md
+
+# Development and testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.mypy_cache
+.ruff_cache
+
+# Database files (should use volumes)
+*.sqlite3
+*.db
+
+# Static files (collected during build)
+staticfiles/admin
+staticfiles/rest_framework
+
+# Media files (should use volumes)
+media/*
+
+# Backup files
+backups/*
+*.backup
+*.bak
+
+# Distribution packages
+dist/*
+*.tar.gz
+*.zip
+
+# Environment files (use env_file in compose)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/*
+
+# Temporary files
+tmp/*
+temp/*
+*.tmp
+
+# Docker files (not needed in build context)
+docker-compose.override.yml
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Node modules (if any)
+node_modules
+npm-debug.log
+yarn-error.log

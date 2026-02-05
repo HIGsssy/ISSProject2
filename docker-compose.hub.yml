@@ -1,0 +1,111 @@
+version: '3.8'
+
+################################################################################
+# ISS Portal - Docker Hub Deployment Configuration
+#
+# This file is used to deploy ISS Portal using pre-built images from Docker Hub
+# instead of building locally.
+#
+# Usage:
+#   docker-compose -f docker-compose.hub.yml up -d
+#
+################################################################################
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: iss_portal_db
+    environment:
+      - POSTGRES_DB=iss_portal_db
+      - POSTGRES_USER=iss_user
+      - POSTGRES_PASSWORD=kN8mP4xR9vL2wQ7jT5nC6hB3fY1sD0aE
+    volumes:
+      - iss_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iss_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - iss_network
+
+  # Django Web Application (from Docker Hub)
+  web:
+    image: hgisssy/iss-portal:latest
+    container_name: iss_portal_web
+    command: gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 60 --access-logfile - --error-logfile - iss_portal.wsgi:application
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-iss_portal_db}
+      - POSTGRES_USER=${POSTGRES_USER:-iss_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
+    volumes:
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - iss_network
+    restart: unless-stopped
+    stdin_open: true  # Enable interactive input
+    tty: true         # Allocate a pseudo-TTY
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: iss_portal_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./staticfiles:/app/staticfiles:ro
+      - ./media:/app/media:ro
+    depends_on:
+      - web
+    networks:
+      - iss_network
+    restart: unless-stopped
+    command: |
+      sh -c "
+      cat > /etc/nginx/conf.d/default.conf << 'EOF'
+      server {
+          listen 80;
+          server_name _;
+          client_max_body_size 20M;
+
+          location /static/ {
+              alias /app/staticfiles/;
+          }
+
+          location /media/ {
+              alias /app/media/;
+          }
+
+          location / {
+              proxy_pass http://web:8000;
+              proxy_set_header Host \$$host;
+              proxy_set_header X-Real-IP \$$remote_addr;
+              proxy_set_header X-Forwarded-For \$$proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto \$$scheme;
+          }
+      }
+      EOF
+      nginx -g 'daemon off;'
+      "
+
+volumes:
+  iss_postgres_data:
+    name: iss_postgres_data
+
+networks:
+  iss_network:
+    name: iss_network
+    driver: bridge

@@ -64,20 +64,52 @@
                 </div>
                 
                 <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700">
-                        Status <span class="text-red-600">*</span>
+                    <label for="centre" class="block text-sm font-medium text-gray-700">
+                        Centre
                     </label>
                     <select 
-                        id="status" 
-                        name="status" 
+                        id="centre" 
+                        name="centre"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                        <option value="">No Centre</option>
+                        {% for centre in centres %}
+                        <option value="{{ centre.id }}" {% if child.centre_id == centre.id %}selected{% endif %}>{{ centre.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                {% if is_supervisor_or_admin %}
+                <div>
+                    <label for="caseload_status" class="block text-sm font-medium text-gray-700">
+                        Caseload Status <span class="text-red-600">*</span>
+                    </label>
+                    <select 
+                        id="caseload_status" 
+                        name="caseload_status" 
                         required
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     >
-                        {% for value, label in available_statuses %}
-                        <option value="{{ value }}" {% if child.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% for value, label in caseload_status_choices %}
+                        <option value="{{ value }}" {% if child.caseload_status == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
-                    <p class="mt-1 text-xs text-gray-500">To discharge a child, use the Discharge button on the child detail page.</p>
+                    <p class="mt-1 text-xs text-gray-500">Automatically updates when staff assignments change.</p>
+                </div>
+                {% endif %}
+                
+                <div>
+                    <label for="on_hold" class="flex items-center text-sm font-medium text-gray-700">
+                        <input 
+                            type="checkbox" 
+                            id="on_hold" 
+                            name="on_hold"
+                            {% if child.on_hold %}checked{% endif %}
+                            class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        >
+                        On Hold
+                    </label>
+                    <p class="mt-1 text-xs text-gray-500 ml-6">Temporarily pause this child's record while keeping them active.</p>
                 </div>
             </div>
         </div>
@@ -164,7 +196,7 @@
                     <h4 class="text-sm font-medium text-gray-700 mb-3">Primary Guardian</h4>
                 </div>
                 
-                <div>
+                <div class="col-span-2">
                     <label for="guardian1_name" class="block text-sm font-medium text-gray-700">
                         Name
                     </label>
@@ -178,14 +210,40 @@
                 </div>
                 
                 <div>
-                    <label for="guardian1_phone" class="block text-sm font-medium text-gray-700">
-                        Phone
+                    <label for="guardian1_home_phone" class="block text-sm font-medium text-gray-700">
+                        Home Phone
                     </label>
                     <input 
                         type="tel" 
-                        id="guardian1_phone" 
-                        name="guardian1_phone"
-                        value="{{ child.guardian1_phone }}"
+                        id="guardian1_home_phone" 
+                        name="guardian1_home_phone"
+                        value="{{ child.guardian1_home_phone }}"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                </div>
+                
+                <div>
+                    <label for="guardian1_work_phone" class="block text-sm font-medium text-gray-700">
+                        Work Phone
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="guardian1_work_phone" 
+                        name="guardian1_work_phone"
+                        value="{{ child.guardian1_work_phone }}"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                </div>
+                
+                <div>
+                    <label for="guardian1_cell_phone" class="block text-sm font-medium text-gray-700">
+                        Cell Phone
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="guardian1_cell_phone" 
+                        name="guardian1_cell_phone"
+                        value="{{ child.guardian1_cell_phone }}"
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     >
                 </div>
@@ -207,7 +265,7 @@
                     <h4 class="text-sm font-medium text-gray-700 mb-3">Second Guardian (Optional)</h4>
                 </div>
                 
-                <div>
+                <div class="col-span-2">
                     <label for="guardian2_name" class="block text-sm font-medium text-gray-700">
                         Name
                     </label>
@@ -221,14 +279,40 @@
                 </div>
                 
                 <div>
-                    <label for="guardian2_phone" class="block text-sm font-medium text-gray-700">
-                        Phone
+                    <label for="guardian2_home_phone" class="block text-sm font-medium text-gray-700">
+                        Home Phone
                     </label>
                     <input 
                         type="tel" 
-                        id="guardian2_phone" 
-                        name="guardian2_phone"
-                        value="{{ child.guardian2_phone }}"
+                        id="guardian2_home_phone" 
+                        name="guardian2_home_phone"
+                        value="{{ child.guardian2_home_phone }}"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                </div>
+                
+                <div>
+                    <label for="guardian2_work_phone" class="block text-sm font-medium text-gray-700">
+                        Work Phone
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="guardian2_work_phone" 
+                        name="guardian2_work_phone"
+                        value="{{ child.guardian2_work_phone }}"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                </div>
+                
+                <div>
+                    <label for="guardian2_cell_phone" class="block text-sm font-medium text-gray-700">
+                        Cell Phone
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="guardian2_cell_phone" 
+                        name="guardian2_cell_phone"
+                        value="{{ child.guardian2_cell_phone }}"
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     >
                 </div>

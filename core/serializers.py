@@ -37,7 +37,7 @@ class CentreSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_active_children_count(self, obj):
-        return obj.children.filter(status='active').count()
+        return obj.children.filter(overall_status='active').count()
 
 
 class CaseloadAssignmentSerializer(serializers.ModelSerializer):
@@ -71,18 +71,22 @@ class CaseloadAssignmentSerializer(serializers.ModelSerializer):
 class ChildListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for child lists."""
     
+    date_of_birth = serializers.DateField(format='%Y-%m-%d')
+    start_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d')
     full_name = serializers.ReadOnlyField()
     age = serializers.ReadOnlyField()
     centre_name = serializers.CharField(source='centre.name', read_only=True)
     primary_staff = serializers.SerializerMethodField()
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    overall_status_display = serializers.CharField(source='get_overall_status_display', read_only=True)
+    caseload_status_display = serializers.CharField(source='get_caseload_status_display', read_only=True)
     
     class Meta:
         model = Child
         fields = [
             'id', 'first_name', 'last_name', 'full_name', 'age',
-            'date_of_birth', 'centre', 'centre_name', 'status',
-            'status_display', 'primary_staff', 'start_date'
+            'date_of_birth', 'centre', 'centre_name', 'overall_status',
+            'overall_status_display', 'caseload_status', 'caseload_status_display',
+            'on_hold', 'primary_staff', 'start_date'
         ]
     
     def get_primary_staff(self, obj):
@@ -98,13 +102,17 @@ class ChildListSerializer(serializers.ModelSerializer):
 class ChildDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for child records."""
     
+    date_of_birth = serializers.DateField(format='%Y-%m-%d')
+    start_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d')
+    end_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d')
     full_name = serializers.ReadOnlyField()
     age = serializers.ReadOnlyField()
     centre_details = CentreSerializer(source='centre', read_only=True)
     caseload_staff = CaseloadAssignmentSerializer(source='caseload_assignments', many=True, read_only=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     updated_by_name = serializers.CharField(source='updated_by.get_full_name', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    overall_status_display = serializers.CharField(source='get_overall_status_display', read_only=True)
+    caseload_status_display = serializers.CharField(source='get_caseload_status_display', read_only=True)
     
     class Meta:
         model = Child
@@ -113,7 +121,8 @@ class ChildDetailSerializer(serializers.ModelSerializer):
             'address_line1', 'address_line2', 'city', 'province', 'postal_code',
             'guardian1_name', 'guardian1_phone', 'guardian1_email',
             'guardian2_name', 'guardian2_phone', 'guardian2_email',
-            'centre', 'centre_details', 'status', 'status_display',
+            'centre', 'centre_details', 'overall_status', 'overall_status_display',
+            'caseload_status', 'caseload_status_display', 'on_hold',
             'start_date', 'end_date', 'notes',
             'caseload_staff', 'created_at', 'updated_at',
             'created_by', 'created_by_name', 'updated_by', 'updated_by_name'
@@ -125,6 +134,10 @@ class ChildDetailSerializer(serializers.ModelSerializer):
 
 class ChildCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating children with optional caseload assignment."""
+    
+    date_of_birth = serializers.DateField(format='%Y-%m-%d', input_formats=['%Y-%m-%d', 'iso-8601'])
+    start_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d', input_formats=['%Y-%m-%d', 'iso-8601'])
+    end_date = serializers.DateField(required=False, allow_null=True, format='%Y-%m-%d', input_formats=['%Y-%m-%d', 'iso-8601'])
     
     assign_to_staff = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='staff'),
@@ -151,10 +164,18 @@ class ChildCreateSerializer(serializers.ModelSerializer):
         model = Child
         fields = [
             'id', 'first_name', 'last_name', 'date_of_birth',
-            'address_line1', 'address_line2', 'city', 'province', 'postal_code',
-            'guardian1_name', 'guardian1_phone', 'guardian1_email',
-            'guardian2_name', 'guardian2_phone', 'guardian2_email',
-            'centre', 'status', 'start_date', 'end_date', 'notes',
+            'address_line1', 'address_line2', 'city', 'province', 'postal_code', 'alternate_location',
+            'guardian1_name', 'guardian1_home_phone', 'guardian1_work_phone', 'guardian1_cell_phone', 'guardian1_email',
+            'guardian2_name', 'guardian2_home_phone', 'guardian2_work_phone', 'guardian2_cell_phone', 'guardian2_email',
+            'referral_source_type', 'referral_source_name', 'referral_source_phone',
+            'referral_agency_name', 'referral_agency_address',
+            'referral_reason_cognitive', 'referral_reason_language', 'referral_reason_gross_motor',
+            'referral_reason_fine_motor', 'referral_reason_social_emotional', 'referral_reason_self_help',
+            'referral_reason_other', 'referral_reason_details',
+            'attends_childcare', 'childcare_centre', 'childcare_frequency',
+            'attends_earlyon', 'earlyon_centre', 'earlyon_frequency',
+            'agency_continuing_involvement', 'referral_consent_on_file',
+            'centre', 'overall_status', 'caseload_status', 'on_hold', 'start_date', 'end_date', 'discharge_reason', 'notes',
             'assign_to_staff', 'assign_to_self', 'secondary_staff'
         ]
         read_only_fields = ['id']
@@ -166,7 +187,10 @@ class ChildCreateSerializer(serializers.ModelSerializer):
         
         assign_to_staff = data.get('assign_to_staff')
         assign_to_self = data.get('assign_to_self', False)
-        status = data.get('status', 'active')
+        caseload_status = data.get('caseload_status', 'awaiting_assignment')
+        
+        # Set defaults
+        data.setdefault('overall_status', 'active')
         
         # Supervisors and admins should not assign to themselves
         if user and hasattr(user, 'role') and user.role in ['supervisor', 'admin']:
@@ -175,10 +199,9 @@ class ChildCreateSerializer(serializers.ModelSerializer):
                     'assign_to_self': 'Supervisors and admins cannot have their own caseload.'
                 })
             # For non-caseload children, assignment is optional
-            if status != 'non_caseload' and not assign_to_staff:
-                raise serializers.ValidationError({
-                    'assign_to_staff': 'You must assign this child to a staff member.'
-                })
+            if caseload_status != 'non_caseload' and not assign_to_staff:
+                # Set to awaiting_assignment if no staff assigned
+                data['caseload_status'] = 'awaiting_assignment'
         
         # Staff members can only assign to themselves
         if user and hasattr(user, 'role') and user.role == 'staff':
@@ -207,8 +230,9 @@ class ChildCreateSerializer(serializers.ModelSerializer):
         # Create the child
         child = Child.objects.create(**validated_data)
         
-        # Handle caseload assignments (skip for non-caseload children)
-        if child.status != 'non_caseload':
+        # Handle caseload assignments - auto-set caseload_status based on assignments
+        # If child is non_caseload, skip assignment logic
+        if child.caseload_status != 'non_caseload':
             primary_staff = None
             
             # Determine primary staff
@@ -218,7 +242,7 @@ class ChildCreateSerializer(serializers.ModelSerializer):
                 elif user.role == 'staff' and assign_to_self:
                     primary_staff = user
             
-            # Create primary assignment
+            # Create primary assignment (signal will auto-update caseload_status to 'caseload')
             if primary_staff:
                 CaseloadAssignment.objects.create(
                     child=child,

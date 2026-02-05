@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Centre, Child, VisitType, Visit, CaseloadAssignment
+from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, ThemeSetting
 
 
 @admin.register(Centre)
@@ -41,7 +41,7 @@ class CentreAdmin(admin.ModelAdmin):
     
     def active_children_count(self, obj):
         """Count of active children at this centre."""
-        count = obj.children.filter(status='active').count()
+        count = obj.children.filter(overall_status='active').count()
         return count
     active_children_count.short_description = 'Active Children'
     
@@ -76,13 +76,17 @@ class ChildAdmin(admin.ModelAdmin):
         'first_name',
         'age_display',
         'centre',
-        'status_badge',
+        'overall_status_badge',
+        'caseload_status_badge',
+        'on_hold_indicator',
         'primary_staff_display',
         'created_at'
     ]
     
     list_filter = [
-        'status',
+        'overall_status',
+        'caseload_status',
+        'on_hold',
         'centre',
         'created_at',
     ]
@@ -92,27 +96,59 @@ class ChildAdmin(admin.ModelAdmin):
         'last_name',
         'guardian1_name',
         'guardian1_email',
-        'guardian1_phone'
+        'guardian1_cell_phone'
     ]
     
     ordering = ['last_name', 'first_name']
     
     fieldsets = (
         ('Child Information', {
-            'fields': ('first_name', 'last_name', 'date_of_birth', 'status')
+            'fields': ('first_name', 'last_name', 'date_of_birth')
+        }),
+        ('Status', {
+            'fields': ('overall_status', 'caseload_status', 'on_hold')
         }),
         ('Address', {
-            'fields': ('address_line1', 'address_line2', 'city', 'province', 'postal_code'),
+            'fields': ('address_line1', 'address_line2', 'city', 'province', 'postal_code', 'alternate_location'),
             'classes': ('collapse',)
         }),
-        ('Guardian Information', {
+        ('Guardian 1 Information', {
             'fields': (
-                'guardian1_name', 'guardian1_phone', 'guardian1_email',
-                'guardian2_name', 'guardian2_phone', 'guardian2_email'
+                'guardian1_name', 
+                'guardian1_home_phone', 'guardian1_work_phone', 'guardian1_cell_phone',
+                'guardian1_email',
             )
         }),
+        ('Guardian 2 Information', {
+            'fields': (
+                'guardian2_name',
+                'guardian2_home_phone', 'guardian2_work_phone', 'guardian2_cell_phone',
+                'guardian2_email'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Referral Information', {
+            'fields': (
+                'referral_source_type', 'referral_source_name', 'referral_source_phone',
+                'referral_agency_name', 'referral_agency_address',
+                'referral_reason_cognitive', 'referral_reason_language', 
+                'referral_reason_gross_motor', 'referral_reason_fine_motor',
+                'referral_reason_social_emotional', 'referral_reason_self_help', 'referral_reason_other',
+                'referral_reason_details',
+                'referral_consent_on_file'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Program Attendance', {
+            'fields': (
+                'attends_childcare', 'childcare_centre', 'childcare_frequency',
+                'attends_earlyon', 'earlyon_centre', 'earlyon_frequency',
+                'agency_continuing_involvement'
+            ),
+            'classes': ('collapse',)
+        }),
         ('Service Information', {
-            'fields': ('centre', 'start_date', 'end_date', 'notes')
+            'fields': ('centre', 'start_date', 'end_date', 'discharge_reason', 'notes')
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
@@ -128,21 +164,43 @@ class ChildAdmin(admin.ModelAdmin):
         return f"{obj.age} years"
     age_display.short_description = 'Age'
     
-    def status_badge(self, obj):
-        """Display status with color coding."""
+    def overall_status_badge(self, obj):
+        """Display overall status with color coding."""
         colors = {
             'active': '#28a745',
-            'on_hold': '#ffc107',
-            'discharged': '#6c757d',
-            'non_caseload': '#17a2b8'
+            'discharged': '#6c757d'
         }
-        color = colors.get(obj.status, '#6c757d')
+        color = colors.get(obj.overall_status, '#6c757d')
         return format_html(
             '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
             color,
-            obj.get_status_display()
+            obj.get_overall_status_display()
         )
-    status_badge.short_description = 'Status'
+    overall_status_badge.short_description = 'Overall Status'
+    
+    def caseload_status_badge(self, obj):
+        """Display caseload status with color coding."""
+        colors = {
+            'caseload': '#007bff',
+            'non_caseload': '#17a2b8',
+            'awaiting_assignment': '#ffc107'
+        }
+        color = colors.get(obj.caseload_status, '#6c757d')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_caseload_status_display()
+        )
+    caseload_status_badge.short_description = 'Caseload Status'
+    
+    def on_hold_indicator(self, obj):
+        """Display on-hold indicator."""
+        if obj.on_hold:
+            return format_html(
+                '<span style="background-color: #ffc107; color: black; padding: 3px 10px; border-radius: 3px; font-weight: bold;">ON HOLD</span>'
+            )
+        return '-'
+    on_hold_indicator.short_description = 'On Hold'
     
     def primary_staff_display(self, obj):
         """Display primary staff member."""
@@ -162,10 +220,46 @@ class ChildAdmin(admin.ModelAdmin):
 class VisitTypeAdmin(admin.ModelAdmin):
     """Admin interface for managing visit types."""
     
-    list_display = ['name', 'is_active', 'description']
+    list_display = ['name', 'is_active_badge', 'description', 'visit_count']
     list_filter = ['is_active']
     search_fields = ['name', 'description']
     ordering = ['name']
+    
+    fieldsets = (
+        ('Visit Type Details', {
+            'fields': ('name', 'description', 'is_active')
+        }),
+    )
+    
+    def is_active_badge(self, obj):
+        """Display active status as colored badge."""
+        if obj.is_active:
+            return format_html(
+                '<span style="background-color: #10b981; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 12px; font-weight: bold;">ACTIVE</span>'
+            )
+        else:
+            return format_html(
+                '<span style="background-color: #6b7280; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 12px; font-weight: bold;">INACTIVE</span>'
+            )
+    is_active_badge.short_description = 'Status'
+    
+    def visit_count(self, obj):
+        """Count of visits using this type."""
+        count = obj.visits.count()
+        if count > 0:
+            url = reverse('admin:core_visit_changelist') + f'?visit_type__id__exact={obj.id}'
+            return format_html('<a href="{}">{} visits</a>', url, count)
+        return '0 visits'
+    visit_count.short_description = 'Usage'
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of visit types that are in use."""
+        if obj and obj.visits.exists():
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 
 @admin.register(Visit)
@@ -382,3 +476,50 @@ class CaseloadAssignmentAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Only supervisors and admins can delete caseload assignments."""
         return self.has_module_permission(request)
+
+@admin.register(ThemeSetting)
+class ThemeAdmin(admin.ModelAdmin):
+    """Admin interface for customizing the UI theme."""
+    
+    fieldsets = (
+        ('Brand Colors', {
+            'fields': ('primary_color', 'secondary_color', 'accent_color'),
+            'description': 'Define the main brand colors'
+        }),
+        ('Status Colors', {
+            'fields': ('success_color', 'warning_color', 'danger_color'),
+            'description': 'Colors used for status indicators and feedback'
+        }),
+        ('Header/Navbar', {
+            'fields': ('header_bg_color',),
+            'description': 'Customize header/navbar appearance'
+        }),
+        ('Images & Branding', {
+            'fields': ('logo_image', 'favicon', 'background_image'),
+            'description': 'Upload custom images for logo, favicon, and optional background. Logo recommended: 200x100px or 350x200px'
+        }),
+        ('Text Customization', {
+            'fields': ('site_title',),
+            'description': 'Customize the site title shown throughout the application'
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def has_add_permission(self, request):
+        """Only allow one theme settings instance."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of theme settings."""
+        return False
+    
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the single theme settings instance."""
+        from django.shortcuts import redirect
+        obj = ThemeSetting.get_theme()
+        return redirect(f'/admin/core/themesetting/{obj.id}/change/')
