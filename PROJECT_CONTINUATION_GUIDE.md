@@ -1,6 +1,6 @@
 # ISS Portal - Project Continuation Guide
-**Last Updated:** February 4, 2026  
-**Project Status:** Fully Operational - Phase 7 Staff-Scoped Reporting Complete
+**Last Updated:** February 5, 2026  
+**Project Status:** Fully Operational - Phase 8 Child Record Redesign Complete
 
 ---
 
@@ -20,10 +20,11 @@
 13. [Custom Theming System](#custom-theming-system)
 14. [Centre Management](#centre-management)
 15. [Staff-Scoped Reporting (Phase 7)](#staff-scoped-reporting-phase-7)
-16. [Recent Bug Fixes](#recent-bug-fixes)
-17. [Testing Checklist](#testing-checklist)
-18. [Known Considerations](#known-considerations)
-19. [Development Commands](#development-commands)
+16. [Child Record Hub & Visit Management (Phase 8)](#child-record-hub--visit-management-phase-8)
+17. [Recent Bug Fixes](#recent-bug-fixes)
+18. [Testing Checklist](#testing-checklist)
+19. [Known Considerations](#known-considerations)
+20. [Development Commands](#development-commands)
 
 ---
 
@@ -34,7 +35,7 @@
 ### Primary Use Cases:
 - Child record management with encrypted PII
 - Staff caseload assignment and tracking
-- Visit logging and reporting
+- Visit logging and reporting (child visits & site visits)
 - Referral management to community partners
 - Centre management with CSV bulk import
 - Custom branding and theming per-instance
@@ -57,7 +58,7 @@
 ### Frontend:
 - **Django Templates** - Server-side rendering
 - **Tailwind CSS 3.4** - Production-compiled, utility-first styling (38KB minified)
-- **Vanilla JavaScript** - Form handling and API calls
+- **Vanilla JavaScript** - Form handling, tab switching, API calls
 - **Custom theme system** - Branded colors, logos, and site title
 
 ### Infrastructure:
@@ -77,28 +78,112 @@
 
 ## Recent Major Changes
 
-### 1. Production Tailwind CSS & Theming System (February 4, 2026)
+### 1. Child Record Hub & Visit Management System (February 5, 2026)
 
-**CSS Production Compilation:**
-- Moved from CDN Tailwind to production-compiled CSS in Docker
-- Multi-stage Docker build with Node.js for CSS compilation
-- **Critical fix**: Copy templates before npm build so Tailwind can scan for classes
-- Result: 38KB minified CSS (up from 16KB missing utilities)
-- Output: style.css served via Nginx, gzipped to 3.7KB
+**Redesigned Child Detail Page as Information Hub:**
+- Transformed from traditional single-column detail view to scalable multi-section hub
+- **2-Column Header Layout** (60% child info / 40% referral & caseload):
+  - Child demographics (name, DOB, age, centre, guardian contact)
+  - Referral reasons (badge display)
+  - Compact caseload summary with manage button
+  - Status badges (overall, caseload, on-hold flags)
+  
+- **Responsive Tabs Section** (below header):
+  - Active "Visits" tab: Shows last 20 visits with link to full history
+  - Placeholder "Case Notes" tab: Future feature (disabled, grayed)
+  - Placeholder "Support Plans" tab: Future feature (disabled, grayed)
+  - JavaScript-based tab switching (ready for future tabs)
+  
+- **Preserved Full Intake Details** (supervisor/admin only):
+  - All existing detailed information maintained below tabs
+  - Keeps sensitive data access restricted
+  - Address, guardians, referral source, program attendance, consent status
 
-**Custom Theming System:**
-- New `ThemeSetting` model (singleton, pk=1)
-- Fields: 6 colors (ColorField with native picker), 3 image uploads, site_title
-- Admin interface with organized fieldsets: Brand Colors, Status Colors, Header, Images, Text
-- Context processor injects theme into all templates
-- Dynamic CSS variables: `--primary`, `--secondary`, `--accent`, etc.
-- Dynamic logo, site title, header background in navbar
+**New Child Visits Page** (`/children/<pk>/visits/`):
+- Comprehensive paginated visit history (25 per page)
+- Shows all visits for a specific child
+- Visit table: Date, Staff, Centre, Type, Duration (with 7+ hr warning), Actions
+- Edit/View links for each visit
+- Back navigation to child detail
+- "Log New Visit" button for quick access
 
-**Packages Added:**
-- `django-colorfield==0.11.0` - HTML5 color picker widgets
-- `Pillow==10.1.0` - Image upload and processing
+**Visit Management Enhancements:**
+- Split visit forms into dedicated child/site visit forms
+- Dedicated pages: `/visits/add/` (child), `/visits/add-site/` (site)
+- Prominent 2-column form switcher (blue active, gray inactive)
+- Centre field restored to child visits with auto-population from child's centre
+- Centre field editable for override capability
 
-**Migrations:**
+**Bug Fixes (Phase 8):**
+- ✅ Fixed site visit serialization (centre not passed in VisitCreateSerializer)
+- ✅ Fixed audit signal to handle both child visits and site visits
+- ✅ Fixed template syntax errors (unmatched endif tags)
+- ✅ Fixed JSON parsing errors in visit form submission
+
+**Files Created:**
+- `templates/core/child_visits.html` - Paginated visit history page
+
+**Files Modified:**
+- `core/views.py`:
+  - Added `child_visits()` view with Paginator (25 per page)
+  - Updated `child_detail()` to calculate and pass `total_visits_count`
+  - Queries optimized with `select_related()` for efficiency
+  
+- `core/urls.py`:
+  - Added route: `path('children/<int:pk>/visits/', views.child_visits, name='child_visits')`
+  
+- `templates/core/child_detail.html`:
+  - Complete redesign with 2-column responsive header
+  - Tabbed interface below header
+  - Tab switching JavaScript
+  - Responsive grid layout (2-column desktop, 1-column mobile)
+  
+- `core/serializers.py`:
+  - Added `centre` field to `VisitCreateSerializer`
+  - Conditional auto-population from child's centre
+  - Allows manual override for site visits
+  
+- `audit/signals.py`:
+  - Updated `audit_visit_changes()` signal to handle both visit types
+  - Conditional messaging: Shows child name for child visits, centre name for site visits
+  
+- `templates/core/add_visit.html`:
+  - Simplified to child visits only
+  - Removed site visit toggle
+  
+- `templates/core/add_site_visit.html`:
+  - New dedicated site visit form (matching child form UX)
+  
+- `templates/core/dashboard.html`:
+  - Fixed visit display to handle both child and site visits
+  - Conditional child link rendering
+  - Added "View all visits" link
+
+**Database Queries Optimized:**
+- `child_visits()`: `visits.select_related('staff', 'centre', 'visit_type')`
+- `child_detail()`: `child.select_related('centre', 'created_by', 'updated_by')`
+- Reduces N+1 query problems
+
+**Testing Verified:**
+- ✅ Docker build successful (Tailwind compilation clean)
+- ✅ Container starts without errors
+- ✅ Child detail page loads with new layout (HTTP 200)
+- ✅ Child visits page paginates correctly
+- ✅ Tab switching works (JavaScript functional)
+- ✅ Responsive design works (2-column → 1-column on mobile)
+- ✅ Site visit logging works (separate form)
+- ✅ Audit trail captures both visit types correctly
+- ✅ All links functional (edit, view, manage caseload)
+
+**Design Philosophy:**
+- Hub-based architecture allows future expansion
+- Case Notes tab ready for implementation
+- Support Plans tab ready for implementation
+- Full intake details preserved for data-intensive users
+- Mobile-first responsive design
+- Maintains existing permissions and access control
+
+### 2. Production Tailwind CSS & Theming System (February 4, 2026)**Migrations:**
 - `0009_themesetting.py` - ThemeSetting model
 - `0010_alter_themesetting_*.py` - ColorField conversion
 - `0011_themesetting_header_bg_color.py` - Header background

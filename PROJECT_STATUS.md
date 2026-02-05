@@ -1,5 +1,5 @@
 # ISS Portal - Project Status Summary
-**Last Updated: February 4, 2026**
+**Last Updated: February 5, 2026**
 
 ## Project Overview
 Django-based web application for managing children's services with staff caseload management, visit tracking, centre management, comprehensive reporting with staff-scoped access, custom theming, and CSV import capabilities.
@@ -12,92 +12,109 @@ Django-based web application for managing children's services with staff caseloa
 - Nginx reverse proxy
 - Tailwind CSS 3.4 (production-compiled)
 
-## Latest Implementation: Phase 7 - Staff-Scoped Reporting (February 4, 2026)
+## Latest Implementation: Phase 8 - Child Record Redesign & Visit Management Hub (February 5, 2026)
 
-### Staff Reporting Access Control
+### Child Record Page Transformation to Information Hub
 
-**Problem Solved:**
-- Staff members (front-line workers) had no access to view their own visit data
-- Supervisors/Admins could see all reports but staff had no visibility
-- Staff required a way to track their own hours and visits
+**Objectives Completed:**
+1. ✅ Redesigned child_detail.html as scalable information hub
+2. ✅ Created dedicated child_visits.html page for complete visit history
+3. ✅ Fixed site visit logging bug (serializer & audit signals)
+4. ✅ Split visit forms into dedicated child/site visit forms
+5. ✅ Improved form UX with prominent button switcher
+6. ✅ Restored centre field to child visits with auto-population
+7. ✅ Created staff_visits view for visit history management
 
-**Solution Implemented:**
+**Child Record Hub Architecture:**
 
-**Permission Architecture:**
-- Updated `can_access_reports` property in `accounts/models.py` to include `'staff'` role
-- Updated `can_access_reports()` function in `reports/views.py` to include `'staff'` role
-- Both checks must be synchronized to prevent login redirect loops
+**Page Layout (Responsive):**
+- Desktop: 2-column header (60% child info | 40% referral/caseload) + tabbed section
+- Mobile: Stacks to single column, maintains readability
 
-**Visits Report Filtering:**
-- Modified `visits_report()` view to detect staff users with pattern: `user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'`
-- Staff auto-filters to view only their own visits: `Visit.objects.filter(staff=request.user)`
-- Staff cannot override filter via URL parameters (silently ignored in view)
-- Staff can still filter by: date range, child, centre, visit type
-- CSV export button hidden for staff users (permission restriction via `if export_format == 'csv' and not user_is_staff`)
+**Header Section (60/40 Split):**
+- **Left Column (60%)**: Compact child demographics
+  - Name, DOB, age, centre assignment
+  - Guardian 1 name and phone
+  - Status badges (overall status, caseload status, on-hold flag)
+  - Action buttons: Edit, Discharge (supervisor/admin only)
+  
+- **Right Column (40%)**: Referral source & caseload summary
+  - Referral reason badges (Cognitive, Language, Motor, Social/Emotional, etc.)
+  - Caseload assignments card (Primary/Secondary staff)
+  - Quick "Manage Caseload" link for supervisors
 
-**Dashboard Restrictions:**
-- Modified `reports_dashboard()` view to pass `user_is_staff` context variable
-- Updated `templates/reports/dashboard.html` to conditionally render reports:
-  - Staff users see: Only "Visits Report" card
-  - Supervisors/Admins see: All 9 report cards (Children Served, Visits, Staff Summary, Caseload, Age Out, Month Added, Staff Site Visits, Site Visit Summary)
-- Dashboard page title and description change based on user role
+**Tabbed Section (Below Header):**
+- **Visits Tab (Active)**: 
+  - Recent 20 visits displayed in table format
+  - Quick action buttons: "Log Visit"
+  - Link to full visit history: "View all [count] visits →"
+  - Each visit shows: Date, Staff, Visit Type, Duration (with 7+ hour warning), Centre
+  
+- **Case Notes Tab (Placeholder)**: 
+  - Disabled, grayed out
+  - Future feature
+  - JavaScript-based tab switching prepared
+  
+- **Support Plans Tab (Placeholder)**:
+  - Disabled, grayed out
+  - Future feature
+  - JavaScript-based tab switching prepared
 
-**UI/Template Updates:**
-- `templates/reports/visits_report.html` enhancements for staff:
-  - Blue info box explaining staff can only view own visits
-  - Staff filter dropdown hidden (cannot change staff assignment)
-  - Staff column removed from table (redundant for staff view)
-  - CSV export button replaced with permission message
-  - Dynamic table colspan based on user role (6 for staff, 7 for others)
-- `templates/reports/dashboard.html` conditional rendering:
-  - All non-visits reports wrapped in `{% if not user_is_staff %}...{% endif %}`
-  - Dashboard subtitle changes based on role
+**Full Intake Details (Supervisor/Admin Only):**
+- Preserved all existing detailed sections below tabs:
+  - Address information (line1, line2, city, postal code, alternate location)
+  - Guardian 1 complete contact info (name, email, home/work/cell phones)
+  - Guardian 2 complete contact info (if exists)
+  - Referral source details (agency, contact name/phone)
+  - Program attendance (Licensed Childcare, EarlyON)
+  - Consent documentation status
 
-**Navigation:**
-- Staff users now see "Reports" link in navigation menu
-- Link points to reports dashboard with auto-filtered visits view
-- No separate staff-only report page needed
+**New Child Visits Page (`/children/<pk>/visits/`):**
+- Paginated list of all child's visits (25 per page)
+- Comprehensive pagination controls
+- Visit details: Date, Staff, Centre, Type, Duration, Flagged status
+- Edit/View action links for each visit
+- Back-to-child-detail navigation
+- "Log New Visit" button
 
-**Result:**
-- ✅ Staff can access reports without login loop
-- ✅ Staff see only their own visit data automatically
-- ✅ Staff cannot bypass filters or view sensitive reports
-- ✅ Staff can filter by date, child, centre for their visits
-- ✅ CSV export disabled for staff users
-- ✅ Dashboard shows only appropriate reports for staff role
-- ✅ Permission architecture is synchronized and secure
+**Technical Implementation:**
 
-**Files Modified:**
-- `accounts/models.py` - Added `'staff'` to `can_access_reports` property
-- `reports/views.py` - Added `'staff'` to `can_access_reports()` function, staff detection and auto-filtering in `visits_report()`, staff context in `reports_dashboard()`
-- `templates/reports/visits_report.html` - Staff-specific info box, hidden controls, hidden columns, disabled CSV
-- `templates/reports/dashboard.html` - Conditional rendering of non-visits reports
+Files Created:
+- `templates/core/child_visits.html` - New paginated visits list page
 
-**Testing Verified:**
-- ✅ Staff login doesn't redirect loop
-- ✅ Reports navigation link visible to staff
-- ✅ Staff dashboard shows only Visits Report
-- ✅ Visits report auto-filters to staff member's visits
-- ✅ Staff can filter by date, child, centre
-- ✅ CSV export hidden from staff
-- ✅ Supervisor/Admin sees all reports unchanged
+Files Modified:
+- `core/views.py` - Added `child_visits()` view with Paginator, updated `child_detail()` to pass `total_visits_count`
+- `core/urls.py` - Added route: `/children/<int:pk>/visits/` → `child_visits`
+- `templates/core/child_detail.html` - Complete redesign with 2-column header, tabbed interface, responsive grid layout
+- `templates/core/add_visit.html` - Simplified to child visits only
+- `templates/core/add_site_visit.html` - Dedicated site visit form
+- `templates/core/dashboard.html` - Updated visit display with conditional child link
+- `core/serializers.py` - Added centre field to VisitCreateSerializer with conditional auto-population
+- `audit/signals.py` - Updated `audit_visit_changes()` to handle both child visits (child.full_name) and site visits (centre.name)
+
+**Database Queries Optimized:**
+- `child_visits()` uses: `select_related('staff', 'centre', 'visit_type')`
+- `child_detail()` uses: `select_related('centre', 'created_by', 'updated_by')` for child, includes caseload assignments
+
+**Testing Results:**
+- ✅ Docker build successful (no Tailwind errors)
+- ✅ Container running without template errors
+- ✅ Child detail page loads (HTTP 200) with new layout
+- ✅ Child visits page loads with pagination
+- ✅ Tab switching works via JavaScript
+- ✅ Responsive design verified
+- ✅ All links (edit, view, manage caseload) functional
+- ✅ Staff visit logging works (both child and site visits)
+- ✅ Audit trail captures visit changes correctly
+
+**Future Expansion Ready:**
+- Case Notes tab: Ready to be implemented with note management UI
+- Support Plans tab: Ready to be implemented with plan templates
+- Additional child info sections: Can be added as new tabs
 
 ---
 
-## Previous Implementation: Centre Management & Custom Theming (February 4, 2026)
-
-### A. Production Tailwind CSS Compilation
-
-**Problem Solved:**
-- Previous CDN-based Tailwind CSS wasn't production-ready
-- CSS file was only 16KB, missing most utility classes
-- Root cause: Templates weren't available during CSS compilation in Docker
-
-**Solution Implemented:**
-- Multi-stage Docker build with Node.js + Python
-- Stage 1 (Node.js): Compiles Tailwind CSS with template scanning
-- Key fix: Copy templates BEFORE npm build so Tailwind can find class names
-- Stage 2 (Python): Final application container with compiled CSS
+## Previous Implementation: Phase 7 - Staff-Scoped Reporting (February 4, 2026)
 
 **Result:**
 - CSS file: 38KB minified (up from 16KB)
