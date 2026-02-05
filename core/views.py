@@ -245,12 +245,16 @@ def child_detail(request, pk):
     
     referrals = referrals.order_by('-referral_date')
     
+    # Check if current user can discharge this child
+    staff_can_discharge = child.can_be_discharged_by(request.user)
+    
     context = {
         'child': child,
         'caseload_assignments': caseload_assignments,
         'visits': visits,
         'referrals': referrals,
         'referral_status_filter': referral_status_filter,
+        'staff_can_discharge': staff_can_discharge,
     }
     
     return render(request, 'core/child_detail.html', context)
@@ -526,9 +530,9 @@ def discharge_child(request, pk):
     """Discharge a child from services."""
     child = get_object_or_404(Child, pk=pk)
     
-    # Check permissions - staff, supervisors, and admins can discharge
-    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['staff', 'supervisor', 'admin'])):
-        raise PermissionDenied("You don't have permission to discharge children.")
+    # Check permissions using helper method
+    if not child.can_be_discharged_by(request.user):
+        raise PermissionDenied("You don't have permission to discharge this child.")
     
     # Prevent discharging already discharged children
     if child.overall_status == 'discharged':

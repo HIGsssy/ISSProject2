@@ -285,6 +285,31 @@ class Child(models.Model):
             unassigned_at__isnull=True
         ).select_related('staff')
         return [assignment.staff for assignment in assignments]
+    
+    def can_be_discharged_by(self, user):
+        """Check if user can discharge this child.
+        
+        Rules:
+        - Superusers and admins/supervisors can discharge any child
+        - Staff can only discharge children they are assigned to (primary or secondary)
+        """
+        if not user:
+            return False
+        
+        # Superusers, supervisors, and admins can discharge any child
+        if user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin']):
+            return True
+        
+        # Staff can only discharge children they're assigned to
+        if hasattr(user, 'role') and user.role == 'staff':
+            # Check if user is primary or secondary staff for this child
+            has_assignment = self.caseload_assignments.filter(
+                staff=user,
+                unassigned_at__isnull=True
+            ).exists()
+            return has_assignment
+        
+        return False
 
 
 class VisitType(models.Model):
