@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
+from django.core.paginator import Paginator
 from .models import Child, Visit, Centre, VisitType, CaseloadAssignment, CommunityPartner, Referral
 from accounts.models import User
 from .utils.csv_import import ChildCSVImporter, CentreCSVImporter, CSVImportError
@@ -325,6 +326,30 @@ def add_site_visit(request):
     }
     
     return render(request, 'core/add_site_visit.html', context)
+
+
+@login_required
+def staff_visits(request):
+    """View all visits for the current staff member."""
+    user = request.user
+    
+    # Get all visits for this staff member, ordered by most recent first
+    visits = Visit.objects.filter(
+        staff=user
+    ).select_related('child', 'centre', 'visit_type').order_by('-visit_date', '-created_at')
+    
+    # Apply pagination
+    paginator = Paginator(visits, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'visits': page_obj.object_list,
+        'total_visits_count': visits.count(),
+    }
+    
+    return render(request, 'core/staff_visits.html', context)
 
 
 @login_required
