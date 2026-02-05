@@ -505,6 +505,14 @@ def age_out_report(request):
     # Sort monthly data by date (oldest first)
     monthly_age_out_list = sorted(monthly_age_out.values(), key=lambda x: x['date'])
     
+    # Calculate bar widths for monthly data visualization
+    if monthly_age_out_list:
+        max_count = max(item['count'] for item in monthly_age_out_list)
+        max_bar_width = 300  # Maximum bar width in pixels
+        for item in monthly_age_out_list:
+            # Calculate proportional bar width (20px per count, up to max_bar_width)
+            item['bar_width'] = min((item['count'] * 20), max_bar_width) if max_count > 0 else 0
+    
     # Centre breakdown
     centre_breakdown = {}
     for child_data in children_data:
