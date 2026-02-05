@@ -132,9 +132,11 @@ def my_caseload(request):
 @login_required
 def all_children(request):
     """View all children."""
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    
     children = Child.objects.select_related('centre').prefetch_related('caseload_assignments__staff')
     
-    # Apply filters
+    # Apply database-level filters
     overall_status_filter = request.GET.get('overall_status', 'active')
     if overall_status_filter != 'all':
         children = children.filter(overall_status=overall_status_filter)
@@ -149,21 +151,48 @@ def all_children(request):
     elif on_hold_filter == 'no':
         children = children.filter(on_hold=False)
     
-    # Apply search if provided
-    search = request.GET.get('search')
+    # Fetch all matching children and prepare for search filtering
+    all_children = list(children)
+    total_before_search = len(all_children)
+    
+    # Apply search filter on encrypted fields (application-level)
+    search = request.GET.get('search', '').strip()
+    filtered_children = all_children
+    search_applied = False
+    
     if search:
-        children = children.filter(
-            Q(first_name__icontains=search) |
-            Q(last_name__icontains=search) |
-            Q(guardian1_name__icontains=search)
-        )
+        # Enforce minimum 3 characters
+        if len(search) >= 3:
+            search_lower = search.lower()
+            filtered_children = [
+                child for child in all_children
+                if search_lower in child.first_name.lower() or search_lower in child.last_name.lower()
+            ]
+            search_applied = True
+        else:
+            # Search too short - show validation message but don't filter
+            search = None
+            filtered_children = all_children
+    
+    # Paginate the filtered results (50 per page)
+    paginator = Paginator(filtered_children, 50)
+    page_num = request.GET.get('page', 1)
+    
+    try:
+        page_obj = paginator.page(page_num)
+    except (PageNotAnInteger, EmptyPage):
+        page_obj = paginator.page(1)
     
     context = {
-        'children': children,
+        'page_obj': page_obj,
+        'children': page_obj.object_list,
+        'total_children': total_before_search,
+        'total_matches': len(filtered_children),
         'overall_status_filter': overall_status_filter,
         'caseload_status_filter': caseload_status_filter,
         'on_hold_filter': on_hold_filter,
         'search': search,
+        'search_applied': search_applied,
         'view_type': 'all',
     }
     
