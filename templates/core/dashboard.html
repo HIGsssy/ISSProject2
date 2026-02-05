@@ -227,9 +227,13 @@
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ visit.visit_date }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
+                            {% if visit.child %}
                             <a href="{% url 'child_detail' visit.child.pk %}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
                                 {{ visit.child.full_name }}
                             </a>
+                            {% else %}
+                            <span class="text-sm text-gray-500">(Site Visit)</span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ visit.centre.name|default:"N/A" }}

@@ -336,13 +336,14 @@ class VisitCreateSerializer(serializers.ModelSerializer):
     """
     Specialized serializer for creating visits via mobile interface.
     Simplified fields for easier mobile data entry.
+    Supports both child visits and site visits (centre-based visits).
     """
     
     class Meta:
         model = Visit
         fields = [
             'child', 'staff', 'visit_date', 'start_time', 'end_time',
-            'visit_type', 'location_description', 'notes'
+            'visit_type', 'location_description', 'notes', 'centre'
         ]
     
     def validate(self, data):
@@ -359,9 +360,13 @@ class VisitCreateSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        """Create visit with automatic centre snapshot."""
-        child = validated_data['child']
-        validated_data['centre'] = child.centre
+        """Create visit with automatic centre snapshot for child visits."""
+        child = validated_data.get('child')
+        centre = validated_data.get('centre')
+        
+        # For child visits, auto-set centre from child if not explicitly provided
+        if child and not centre:
+            validated_data['centre'] = child.centre
         
         visit = Visit.objects.create(**validated_data)
         return visit

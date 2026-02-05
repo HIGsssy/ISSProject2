@@ -22,6 +22,7 @@ urlpatterns = [
     path('children/<int:pk>/manage-caseload/', views.manage_caseload, name='manage_caseload'),
     path('children/<int:pk>/discharge/', views.discharge_child, name='discharge_child'),
     path('visits/add/', views.add_visit, name='add_visit'),
+    path('visits/add-site/', views.add_site_visit, name='add_site_visit'),
     path('visits/<int:pk>/', views.visit_detail, name='visit_detail'),
     path('visits/<int:pk>/edit/', views.edit_visit, name='edit_visit'),
     path('community-partners/', views.community_partners, name='community_partners'),

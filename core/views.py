@@ -262,7 +262,7 @@ def child_detail(request, pk):
 
 @login_required
 def add_visit(request):
-    """Add visit form."""
+    """Add child visit form."""
     if request.method == 'POST':
         # Handle form submission (this will be handled by API in practice)
         return redirect('dashboard')
@@ -286,7 +286,6 @@ def add_visit(request):
             caseload_status='caseload'
         ).distinct().order_by('last_name', 'first_name')
     
-    centres = Centre.objects.filter(status='active').order_by('name')
     visit_types = VisitType.objects.filter(is_active=True).order_by('name')
     
     # Pre-select child if provided in URL
@@ -300,13 +299,30 @@ def add_visit(request):
     
     context = {
         'children': children,
-        'centres': centres,
         'visit_types': visit_types,
         'selected_child': selected_child,
         'selected_centre': selected_centre,
     }
     
     return render(request, 'core/add_visit.html', context)
+
+
+@login_required
+def add_site_visit(request):
+    """Add site visit form."""
+    if request.method == 'POST':
+        # Handle form submission (this will be handled by API in practice)
+        return redirect('dashboard')
+    
+    centres = Centre.objects.filter(status='active').order_by('name')
+    visit_types = VisitType.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'centres': centres,
+        'visit_types': visit_types,
+    }
+    
+    return render(request, 'core/add_site_visit.html', context)
 
 
 @login_required
