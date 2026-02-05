@@ -18,6 +18,7 @@ urlpatterns = [
     path('centres/import/template/', views.download_centres_template, name='download_centres_template'),
     path('children/non-caseload/', views.non_caseload_children, name='non_caseload_children'),
     path('children/<int:pk>/', views.child_detail, name='child_detail'),
+    path('children/<int:pk>/visits/', views.child_visits, name='child_visits'),
     path('children/<int:pk>/edit/', views.edit_child, name='edit_child'),
     path('children/<int:pk>/manage-caseload/', views.manage_caseload, name='manage_caseload'),
     path('children/<int:pk>/discharge/', views.discharge_child, name='discharge_child'),

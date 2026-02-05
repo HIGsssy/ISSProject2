@@ -230,6 +230,9 @@ def child_detail(request, pk):
     # Get recent visits
     visits = child.visits.select_related('staff', 'centre', 'visit_type').order_by('-visit_date', '-start_time')[:20]
     
+    # Get total visits count
+    total_visits_count = child.visits.count()
+    
     # Get referrals with optional filtering
     referrals = child.referrals.select_related('community_partner', 'referred_by', 'status_updated_by')
     
@@ -253,12 +256,36 @@ def child_detail(request, pk):
         'child': child,
         'caseload_assignments': caseload_assignments,
         'visits': visits,
+        'total_visits_count': total_visits_count,
         'referrals': referrals,
         'referral_status_filter': referral_status_filter,
         'staff_can_discharge': staff_can_discharge,
     }
     
     return render(request, 'core/child_detail.html', context)
+
+
+@login_required
+def child_visits(request, pk):
+    """View all visits for a specific child."""
+    child = get_object_or_404(Child, pk=pk)
+    
+    # Get all visits for this child, ordered by most recent first
+    visits = child.visits.select_related('staff', 'centre', 'visit_type').order_by('-visit_date', '-start_time')
+    
+    # Apply pagination
+    paginator = Paginator(visits, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'child': child,
+        'page_obj': page_obj,
+        'visits': page_obj.object_list,
+        'total_visits_count': visits.count(),
+    }
+    
+    return render(request, 'core/child_visits.html', context)
 
 
 @login_required
