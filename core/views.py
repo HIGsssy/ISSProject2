@@ -286,6 +286,7 @@ def add_visit(request):
             caseload_status='caseload'
         ).distinct().order_by('last_name', 'first_name')
     
+    centres = Centre.objects.filter(status='active').order_by('name')
     visit_types = VisitType.objects.filter(is_active=True).order_by('name')
     
     # Pre-select child if provided in URL
@@ -299,6 +300,7 @@ def add_visit(request):
     
     context = {
         'children': children,
+        'centres': centres,
         'visit_types': visit_types,
         'selected_child': selected_child,
         'selected_centre': selected_centre,

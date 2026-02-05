@@ -6,7 +6,20 @@
 <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-900">Log Site Visit</h1>
     <p class="mt-2 text-gray-600">Record a general visit to a centre (not specific to a child)</p>
-    <p class="mt-1 text-sm text-gray-500"><a href="{% url 'add_visit' %}" class="text-blue-600 hover:text-blue-800">Log a child visit instead</a></p>
+    
+    <!-- Form Type Selector -->
+    <div class="mt-6 flex gap-3">
+        <div class="flex-1">
+            <a href="{% url 'add_visit' %}" class="block w-full p-4 bg-gray-100 border-2 border-gray-300 rounded-lg text-center hover:bg-gray-200 hover:border-gray-400 transition">
+                <p class="text-sm font-medium text-gray-700">Switch to:</p>
+                <p class="text-lg font-bold text-gray-600">Child Visit</p>
+            </a>
+        </div>
+        <div class="flex-1 p-4 bg-blue-50 border-2 border-blue-500 rounded-lg">
+            <p class="text-sm font-medium text-gray-700">Current Form:</p>
+            <p class="text-lg font-bold text-blue-600">Site Visit</p>
+        </div>
+    </div>
 </div>
 
 <div class="max-w-2xl mx-auto bg-white shadow rounded-lg p-6">
