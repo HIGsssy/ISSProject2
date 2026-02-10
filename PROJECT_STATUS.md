@@ -1,5 +1,5 @@
 # ISS Portal - Project Status Summary
-**Last Updated: February 5, 2026**
+**Last Updated: February 10, 2026**
 
 ## Project Overview
 Django-based web application for managing children's services with staff caseload management, visit tracking, centre management, comprehensive reporting with staff-scoped access, custom theming, and CSV import capabilities.
@@ -12,7 +12,167 @@ Django-based web application for managing children's services with staff caseloa
 - Nginx reverse proxy
 - Tailwind CSS 3.4 (production-compiled)
 
-## Latest Implementation: Phase 8 - Child Record Redesign & Visit Management Hub (February 5, 2026)
+## Latest Implementation: Phase 9 - Age Progression Monthly Report (February 10, 2026)
+
+### Age Category Transition Tracking System
+
+**Objectives Completed:**
+1. ✅ Created `AgeProgressionEvent` model with indexed queries
+2. ✅ Implemented post-save signal for real-time transition detection
+3. ✅ Built management command for 3–6 month historical backfill
+4. ✅ Developed report view with month/year/centre filtering
+5. ✅ Created responsive report template with summary cards
+6. ✅ Added dashboard card (Violet) for report access
+7. ✅ Implemented CSV export with child names and metadata
+8. ✅ Integrated with admin interface (read-only for staff)
+
+**Age Progression Event Model:**
+- `child` (FK to Child, CASCADE)
+- `previous_category` (infant, toddler, preschooler, jk_sk, school_age, other)
+- `new_category` (same choices)
+- `transition_date` (DateField, calendar month-based)
+- `age_in_months` (DecimalField for precision)
+- `recorded_at` (DateTimeField, auto-timestamp)
+- Indexes: `(child, transition_date)`, `(transition_date)` for efficiency
+
+**Age Categories (Defined in `core/utils/age_utils.py`):**
+- **Infant**: 0–18 months
+- **Toddler**: 18–30 months
+- **Preschooler**: 30–45.6 months (3.8 years)
+- **JK/SK**: 45.6–72 months (6 years)
+- **School Age**: 72–144 months (12 years)
+- **Other**: 144+ months
+
+**Signal Handler (`core/signals.py`):**
+- Hooks into Child `post_save` signal
+- Detects category changes by comparing current age to most recent `AgeProgressionEvent`
+- Only creates events for **upward transitions** (age categories increase monotonically)
+- Prevents duplicate events on same day via idempotency check
+- Applies to new transitions going forward (no retroactive signal triggers)
+
+**Management Command (`core/management/commands/backfill_age_progressions.py`):**
+```bash
+# Usage:
+docker-compose exec web python manage.py backfill_age_progressions --months=6 [--dry-run]
+```
+- Parameters:
+  - `--months=N`: Lookback window (default 6 months)
+  - `--dry-run`: Preview changes without creating
+- Process:
+  1. Samples age at calendar month boundaries (1st of each month)
+  2. Calculates age using `date_of_birth + relativedelta`
+  3. Detects upward transitions month-to-month
+  4. Creates events idempotently (skips if exists)
+  5. Outputs progress every 50 children
+  6. Prints summary by transition type
+
+**Report View (`reports/views.py:age_progression_report`):**
+- URL: `/reports/age-progressions/`
+- GET Parameters:
+  - `year`: Report year (required, defaults to current)
+  - `month`: Report month 1–12 (required, defaults to current)
+  - `centre`: Optional centre filter
+  - `export=csv`: Export to CSV if present
+- Access: Admin/Supervisor/Auditor only (staff users redirected)
+- Query: `AgeProgressionEvent.objects.filter(transition_date__year=year, transition_date__month=month)`
+- Groups by transition type, calculates summary statistics
+- Returns: summary counts, transitions list with child details
+
+**Report Template (`templates/reports/age_progression.html`):**
+- **Filter Form**: Year, Month, Centre (optional) dropdowns + Apply button
+- **Summary Card**: 
+  - "X progressions in [Month] [Year]" headline
+  - Breakdown by transition type (infant→toddler, etc.)
+- **Transition Type Cards**: 
+  - Preview cards showing count per transition type
+  - Color-coded (purple theme)
+- **Detail Table**:
+  - Columns: Transition Type, Child Name (linked), Centre, Age at Transition (months), Date
+  - Sortable within transition groups
+  - "No data" message for empty periods
+- **CSV Export Button**: Downloads with filtered data
+- **Responsive Design**: Mobile-friendly with horizontal scroll on small screens
+
+**Dashboard Card:**
+- **Location**: Reports dashboard, after "Month Added Report"
+- **Color**: Violet (`bg-violet-500`, `hover:bg-violet-700`)
+- **Icon**: Trending growth chart
+- **Title**: "Age Progressions"
+- **Description**: "Monthly tracking of age category transitions"
+- **Access**: Admin/Supervisor/Auditor (same as view)
+
+**Admin Interface (`core/admin.py:AgeProgressionEventAdmin`):**
+- List Display: Child name (linked), Transition (e.g., infant→toddler), Date, Age
+- Filters: By transition_date, new_category, previous_category
+- Search: By child first_name, last_name
+- Read-Only: Add/Edit disabled (only signal handler and backfill create)
+- Delete Restricted: Admins/Superusers only
+
+**CSV Export Format:**
+```csv
+Age Progressions Report
+Period:,February 2026
+
+Total Progressions:,N
+Transition Type,Child Name,Centre,Age at Transition (months),Date
+infant → toddler,John Doe,Sunnydale Centre,22.50,2026-02-01
+```
+
+**Data Flow:**
+1. **Real-Time**: Child saved → Signal detects category change → Event created immediately
+2. **Backfill**: Command samples age at each month → Detects transitions → Events created for history
+3. **Display**: Query events by month → Group by transition type → Render with filters
+
+**Technical Implementation:**
+
+Files Created:
+- `core/utils/age_utils.py` - Reusable functions: `calculate_age_in_months()`, `get_age_group()`
+- `core/management/commands/backfill_age_progressions.py` - Backfill command
+- `templates/reports/age_progression.html` - Report template
+
+Files Modified:
+- `core/models.py` - Added `AgeProgressionEvent` model with Meta indexes
+- `core/signals.py` - Added `track_age_progression()` post_save handler
+- `core/admin.py` - Added `AgeProgressionEventAdmin` with read-only constraints
+- `reports/views.py` - Added `age_progression_report()` view + `export_age_progression_csv()`
+- `reports/urls.py` - Added route: `/age-progressions/` → `age_progression_report`
+- `templates/reports/dashboard.html` - Added "Age Progressions" card (Violet)
+- Migration: `core/migrations/0012_alter_themesetting_accent_color_and_more.py` (includes `CreateModel AgeProgressionEvent`)
+
+**Database:**
+- Migration applied successfully
+- Table: `core_ageprogressionevent` created with 7 fields + 2 indexes
+- Query performance: Indexed on `(child_id, transition_date)` for efficient month/child lookups
+
+**Testing Results:**
+- ✅ Django system check: No issues
+- ✅ Python syntax: All files compile without errors
+- ✅ Model migration: Applied successfully
+- ✅ Admin interface: Read-only constraints working
+- ✅ View renders: Template displays correctly with month dropdown
+- ✅ Signal handler: Ready for real-time transitions
+- ✅ Backfill command: Runs without errors
+- ✅ URL routing: age-progressions path registered
+- ✅ CSV export: Format validated
+- ✅ Docker rebuild: Complete with all containers healthy
+
+**Design Decisions:**
+- **Denormalized Age Categories**: Stored as computed values in events (no persistent field on Child) for simplicity and audit-friendly immutability
+- **Calendar Month Backfill**: Transitions recorded on 1st of month, not DOB anniversary, for consistency
+- **Admin-Only Access**: Follows "Month Added Report" pattern; staff cannot access (consistent restrictions)
+- **Violet Dashboard Card**: New color identity distinguishes Age Progression as major feature
+- **Signal + Backfill Hybrid**: Real-time capture for new transitions, retroactive backfill for historical data
+
+**Future Enhancements:**
+- Cohort analysis: Track how cohorts progress through categories over time
+- Trend charts: Visualize progression velocity by age group
+- Alerts: Notify supervisors when child would age out (144+ months)
+- Age-out integration: Connect with existing Age Out Report for discharge tracking
+- Advanced filters: Staff-scoped progressions, duration in each category
+
+---
+
+## Previous Implementation: Phase 8 - Child Record Redesign & Visit Management Hub (February 5, 2026)
 
 ### Child Record Page Transformation to Information Hub
 
