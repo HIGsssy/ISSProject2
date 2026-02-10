@@ -651,6 +651,56 @@ class Referral(models.Model):
         return f"{self.child.full_name} → {self.community_partner.name} ({self.referral_date})"
 
 
+class AgeProgressionEvent(models.Model):
+    """Track when children advance through age categories (Infant→Toddler, etc.)."""
+    
+    CATEGORY_CHOICES = [
+        ('infant', 'Infant'),
+        ('toddler', 'Toddler'),
+        ('preschooler', 'Preschooler'),
+        ('jk_sk', 'JK/SK'),
+        ('school_age', 'School Age'),
+        ('other', 'Other'),
+    ]
+    
+    child = models.ForeignKey(
+        Child,
+        on_delete=models.CASCADE,
+        related_name='age_progression_events'
+    )
+    previous_category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        help_text='Age category before transition'
+    )
+    new_category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        help_text='Age category after transition'
+    )
+    transition_date = models.DateField(
+        help_text='Date the transition occurred'
+    )
+    age_in_months = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text='Child\'s age in months at transition'
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-transition_date']
+        verbose_name = 'Age Progression Event'
+        verbose_name_plural = 'Age Progression Events'
+        indexes = [
+            models.Index(fields=['child', 'transition_date']),
+            models.Index(fields=['transition_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.child.full_name}: {self.previous_category} → {self.new_category} ({self.transition_date})"
+
+
 # Signal handlers for auto-updating caseload_status
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
