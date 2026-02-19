@@ -750,6 +750,56 @@ def update_child_caseload_status_on_delete(sender, instance, **kwargs):
         child.save(update_fields=['caseload_status'])
 
 
+class CaseNote(models.Model):
+    """Case notes for children - date-stamped, authored entries."""
+
+    child = models.ForeignKey(
+        'Child',
+        on_delete=models.CASCADE,
+        related_name='case_notes'
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='case_notes'
+    )
+    content = EncryptedTextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='edited_case_notes'
+    )
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='deleted_case_notes'
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Case Note'
+        verbose_name_plural = 'Case Notes'
+
+    def __str__(self):
+        return f"Note for {self.child.full_name} by {self.author.get_full_name()} at {self.created_at}"
+
+    @property
+    def is_edited(self):
+        """Return True if the note has been edited after initial creation."""
+        if self.updated_at and self.created_at:
+            delta = self.updated_at - self.created_at
+            return delta.total_seconds() > 2
+        return False
+
+
 class ThemeSetting(models.Model):
     """
     Singleton model for global UI theme customization.

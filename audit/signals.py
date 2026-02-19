@@ -262,3 +262,26 @@ def audit_user_changes(sender, instance, created, **kwargs):
                         new_value=values['new'],
                         metadata={'target_user': instance.get_full_name()}
                     )
+
+
+@receiver(post_save, sender='core.CaseNote')
+def audit_case_note_changes(sender, instance, created, **kwargs):
+    """Audit log for CaseNote creation and edits."""
+    user = get_current_user()
+    if created:
+        AuditLog.log_action(
+            user=user,
+            entity=instance,
+            action='created',
+            new_value=f"Case note added for {instance.child.full_name} by {instance.author.get_full_name()}"
+        )
+    else:
+        # Only log non-deletion updates (deletions are logged manually in the viewset)
+        if not instance.is_deleted:
+            AuditLog.log_action(
+                user=user,
+                entity=instance,
+                action='updated',
+                field_name='content',
+                new_value=f"Case note for {instance.child.full_name} edited by {getattr(instance.updated_by, 'get_full_name', lambda: '')()}"
+            )

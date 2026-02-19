@@ -5,7 +5,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .viewsets import (
     CentreViewSet, ChildViewSet, VisitTypeViewSet,
-    VisitViewSet, CaseloadAssignmentViewSet
+    VisitViewSet, CaseloadAssignmentViewSet, CaseNoteViewSet
 )
 
 router = DefaultRouter()
@@ -17,4 +17,14 @@ router.register(r'caseloads', CaseloadAssignmentViewSet, basename='caseload')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('children/<int:child_pk>/case-notes/', CaseNoteViewSet.as_view({
+        'get': 'list',
+        'post': 'create',
+    }), name='child-case-notes-list'),
+    path('children/<int:child_pk>/case-notes/<int:pk>/', CaseNoteViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'patch': 'partial_update',
+        'delete': 'destroy',
+    }), name='child-case-notes-detail'),
 ]

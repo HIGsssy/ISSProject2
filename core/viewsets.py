@@ -8,11 +8,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from django.utils import timezone
 
-from .models import Centre, Child, VisitType, Visit, CaseloadAssignment
+from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, CaseNote
 from .serializers import (
     CentreSerializer, ChildListSerializer, ChildDetailSerializer, ChildCreateSerializer,
     VisitTypeSerializer, VisitSerializer, VisitCreateSerializer,
-    CaseloadAssignmentSerializer
+    CaseloadAssignmentSerializer, CaseNoteSerializer
 )
 from .permissions import (
     IsStaffMember, IsSupervisorOrAdmin, CanEditVisit, CanAccessReports
@@ -305,3 +305,85 @@ class CaseloadAssignmentViewSet(viewsets.ModelViewSet):
             'message': f'Successfully reassigned {len(new_assignments)} children',
             'assignments': serializer.data
         })
+
+
+class CaseNoteViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for CaseNote model.
+    Notes are scoped to a specific child via the child_pk URL kwarg.
+    Staff can create notes and edit their own notes.
+    Supervisors and admins can edit all notes and soft-delete.
+    """
+
+    serializer_class = CaseNoteSerializer
+    filter_backends = [filters.OrderingFilter]
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        child_pk = self.kwargs.get('child_pk')
+        qs = CaseNote.objects.filter(
+            is_deleted=False
+        ).select_related('author', 'updated_by', 'child')
+        if child_pk:
+            qs = qs.filter(child_id=child_pk)
+        # Apply search
+        q = self.request.query_params.get('q', '').strip()
+        if q:
+            qs = qs.filter(
+                Q(author__first_name__icontains=q) |
+                Q(author__last_name__icontains=q)
+            )
+        return qs
+
+    def get_permissions(self):
+        return [IsStaffMember()]
+
+    def perform_create(self, serializer):
+        child_pk = self.kwargs.get('child_pk')
+        child = Child.objects.get(pk=child_pk)
+        serializer.save(author=self.request.user, child=child)
+
+    def update(self, request, *args, **kwargs):
+        note = self.get_object()
+        user = request.user
+        is_supervisor_or_admin = user.is_superuser or (
+            hasattr(user, 'role') and user.role in ['supervisor', 'admin']
+        )
+        if not is_supervisor_or_admin and note.author != user:
+            return Response(
+                {'detail': 'You can only edit your own notes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Soft-delete a note. Only supervisors and admins can delete."""
+        user = request.user
+        is_supervisor_or_admin = user.is_superuser or (
+            hasattr(user, 'role') and user.role in ['supervisor', 'admin']
+        )
+        if not is_supervisor_or_admin:
+            return Response(
+                {'detail': 'Only supervisors and admins can delete notes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        note = self.get_object()
+        note.is_deleted = True
+        note.deleted_by = user
+        note.deleted_at = timezone.now()
+        note.save(update_fields=['is_deleted', 'deleted_by', 'deleted_at'])
+        # Write audit log entry
+        from audit.models import AuditLog
+        AuditLog.objects.create(
+            user=user,
+            entity_type='CaseNote',
+            entity_id=note.pk,
+            action='deleted',
+            old_value=f'Case note for {note.child.full_name} by {note.author.get_full_name()} deleted by {user.get_full_name()}',
+            metadata={
+                'child_id': note.child.pk,
+                'child_name': note.child.full_name,
+                'author_id': note.author.pk,
+            }
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
