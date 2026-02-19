@@ -491,7 +491,10 @@ def edit_child(request, pk):
             # Update child information
             child.first_name = request.POST.get('first_name', '').strip()
             child.last_name = request.POST.get('last_name', '').strip()
-            child.date_of_birth = request.POST.get('date_of_birth')
+            dob_str = request.POST.get('date_of_birth', '').strip()
+            if dob_str:
+                from datetime import date
+                child.date_of_birth = date.fromisoformat(dob_str)
             
             # Address fields
             child.address_line1 = request.POST.get('address_line1', '').strip()
