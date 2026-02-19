@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
 {% block title %}{{ child.full_name }} - ISS Portal{% endblock %}
 
@@ -148,7 +148,7 @@
                         <span class="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">Secondary</span>
                         {% endif %}
                         {% if not assignment.unassigned_at %}
-                        <span class="ml-2 text-xs text-green-600">✓ Active</span>
+                        <span class="ml-2 text-xs text-green-600">&#10003; Active</span>
                         {% endif %}
                     </li>
                     {% endfor %}
@@ -157,7 +157,7 @@
                 {% if child.status == 'non_caseload' %}
                 <p class="text-xs text-gray-500">Non-caseload child</p>
                 {% else %}
-                <p class="text-xs text-yellow-600">⚠️ Not assigned</p>
+                <p class="text-xs text-yellow-600">&#9888; Not assigned</p>
                 {% endif %}
                 {% endif %}
             </div>
@@ -175,6 +175,9 @@
             </button>
             <button class="tab-button px-4 py-4 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300" data-tab="case-notes">
                 Case Notes
+            </button>
+            <button class="tab-button px-4 py-4 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300" data-tab="intake-details">
+                Intake Details
             </button>
             <button class="tab-button px-4 py-4 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 cursor-not-allowed opacity-50" data-tab="support-plans" disabled>
                 Support Plans
@@ -219,7 +222,7 @@
                             <td class="px-4 py-2 whitespace-nowrap text-sm {% if visit.flagged_for_review %}text-red-600 font-bold{% else %}text-gray-500{% endif %}">
                                 {{ visit.duration_hours }}
                                 {% if visit.flagged_for_review %}
-                                <span title="Flagged for review (7+ hours)">⚠</span>
+                                <span title="Flagged for review (7+ hours)">&#9888;</span>
                                 {% endif %}
                             </td>
                             <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ visit.centre.name|default:"N/A" }}</td>
@@ -233,7 +236,7 @@
             </div>
             <div class="mt-4 text-sm">
                 <a href="{% url 'child_visits' child.pk %}" class="text-blue-600 hover:text-blue-800 font-medium">
-                    View all {{ total_visits_count }} visit{{ total_visits_count|pluralize }} →
+                    View all {{ total_visits_count }} visit{{ total_visits_count|pluralize }} &rarr;
                 </a>
             </div>
             {% else %}
@@ -352,6 +355,216 @@
         <div id="support-plans-tab" class="tab-content hidden">
             <p class="text-gray-500">Support plans feature coming soon.</p>
         </div>
+
+        <!-- Intake Details Tab -->
+        <div id="intake-details-tab" class="tab-content hidden">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Intake Details for {{ child.full_name }}</h3>
+
+            <!-- Address Information -->
+            <div class="border border-gray-200 rounded-lg mb-4">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-700">Address Information</h4>
+                </div>
+                <div class="px-4 py-4">
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        {% if child.address_line1 %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Address</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {{ child.address_line1 }}
+                                {% if child.address_line2 %}<br>{{ child.address_line2 }}{% endif %}
+                                {% if child.city or child.postal_code %}
+                                <br>{% if child.city %}{{ child.city }}{% endif %}{% if child.city and child.postal_code %}, {% endif %}{% if child.postal_code %}{{ child.postal_code }}{% endif %}
+                                {% endif %}
+                            </dd>
+                        </div>
+                        {% endif %}
+                        {% if child.alternate_location %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Alternate Location</dt>
+                            <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ child.alternate_location }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if not child.address_line1 and not child.alternate_location %}
+                        <div class="sm:col-span-2"><p class="text-sm text-gray-400">No address information recorded.</p></div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Guardian 1 -->
+            <div class="border border-gray-200 rounded-lg mb-4">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-700">Guardian 1 &mdash; Contact Information</h4>
+                </div>
+                <div class="px-4 py-4">
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Name</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_name|default:"N/A" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Email</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_email|default:"N/A" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Home Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_home_phone|default:"N/A" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Work Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_work_phone|default:"N/A" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Cell Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_cell_phone|default:"N/A" }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Guardian 2 -->
+            {% if child.guardian2_name %}
+            <div class="border border-gray-200 rounded-lg mb-4">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-700">Guardian 2 &mdash; Contact Information</h4>
+                </div>
+                <div class="px-4 py-4">
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Name</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_name }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Email</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_email|default:"N/A" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Home Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_home_phone|default:"N/A" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Work Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_work_phone|default:"N/A" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Cell Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_cell_phone|default:"N/A" }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Referral Source -->
+            {% if child.referral_source_type %}
+            <div class="border border-gray-200 rounded-lg mb-4">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-700">Referral Source</h4>
+                </div>
+                <div class="px-4 py-4">
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Referred By</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {% if child.referral_source_type == 'parent_guardian' %}Parent/Guardian{% else %}Other Agency{% endif %}
+                            </dd>
+                        </div>
+                        {% if child.referral_source_name %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Contact Name</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.referral_source_name }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if child.referral_source_phone %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Contact Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.referral_source_phone }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if child.referral_agency_name %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Agency Name</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ child.referral_agency_name }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if child.referral_agency_address %}
+                        <div class="sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">Agency Address</dt>
+                            <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ child.referral_agency_address }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if child.agency_continuing_involvement %}
+                        <div class="sm:col-span-2">
+                            <span class="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">&#10003; Agency Continuing Involvement</span>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Program Attendance -->
+            {% if child.attends_childcare or child.attends_earlyon %}
+            <div class="border border-gray-200 rounded-lg mb-4">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-700">Program Attendance</h4>
+                </div>
+                <div class="px-4 py-4">
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        {% if child.attends_childcare %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Licensed Childcare</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <span class="font-medium text-green-600">&#10003; Attending</span>
+                                {% if child.childcare_centre %}<br>Centre: {{ child.childcare_centre.name }}{% endif %}
+                                {% if child.childcare_frequency %}<br>Frequency: {{ child.childcare_frequency }}{% endif %}
+                            </dd>
+                        </div>
+                        {% endif %}
+                        {% if child.attends_earlyon %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">EarlyON Program</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <span class="font-medium text-green-600">&#10003; Attending</span>
+                                {% if child.earlyon_centre %}<br>Centre: {{ child.earlyon_centre.name }}{% endif %}
+                                {% if child.earlyon_frequency %}<br>Frequency: {{ child.earlyon_frequency }}{% endif %}
+                            </dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Consent & Notes -->
+            <div class="border border-gray-200 rounded-lg mb-4">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-700">Consent &amp; Documentation</h4>
+                </div>
+                <div class="px-4 py-4">
+                    <div class="flex items-center">
+                        {% if child.referral_consent_on_file %}
+                        <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-sm font-medium text-green-700">Referral consent form on file</span>
+                        {% else %}
+                        <svg class="h-5 w-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-sm font-medium text-yellow-700">Referral consent form status unknown</span>
+                        {% endif %}
+                    </div>
+                    {% if child.notes %}
+                    <div class="mt-4">
+                        <dt class="text-sm font-medium text-gray-500 mb-1">General Notes</dt>
+                        <dd class="text-sm text-gray-900 whitespace-pre-wrap">{{ child.notes }}</dd>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -462,7 +675,7 @@ async function saveNote() {
 
     const btn = document.getElementById('save-note-btn');
     btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.textContent = 'Saving...';
 
     try {
         const resp = await fetch(API_BASE, {
@@ -635,204 +848,5 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 </script>
-
-<!-- Full Details Section - Supervisor/Admin Only -->
-{% if user.is_superuser or user.role == 'supervisor' or user.role == 'admin' %}
-<div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow overflow-hidden sm:rounded-lg mb-6">
-    <div class="px-4 py-5 sm:px-6 border-b border-blue-200 bg-white">
-        <div class="flex items-center">
-            <svg class="h-5 w-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-            </svg>
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Full Intake Details</h3>
-            <span class="ml-3 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">Supervisor/Admin Only</span>
-        </div>
-    </div>
-    
-    <!-- Address Information -->
-    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
-        <h4 class="text-md font-semibold text-gray-800 mb-3">Address Information</h4>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-            {% if child.address_line1 %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Address</dt>
-                <dd class="mt-1 text-sm text-gray-900">
-                    {{ child.address_line1 }}
-                    {% if child.address_line2 %}<br>{{ child.address_line2 }}{% endif %}
-                    {% if child.city or child.postal_code %}
-                    <br>{% if child.city %}{{ child.city }}{% endif %}{% if child.city and child.postal_code %}, {% endif %}{% if child.postal_code %}{{ child.postal_code }}{% endif %}
-                    {% endif %}
-                </dd>
-            </div>
-            {% endif %}
-            {% if child.alternate_location %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Alternate Location</dt>
-                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ child.alternate_location }}</dd>
-            </div>
-            {% endif %}
-        </dl>
-    </div>
-    
-    <!-- Guardian 1 Full Details -->
-    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
-        <h4 class="text-md font-semibold text-gray-800 mb-3">Guardian 1 - Complete Contact Info</h4>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Name</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_name|default:"N/A" }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Email</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_email|default:"N/A" }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Home Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_home_phone|default:"N/A" }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Work Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_work_phone|default:"N/A" }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Cell Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian1_cell_phone|default:"N/A" }}</dd>
-            </div>
-        </dl>
-    </div>
-    
-    <!-- Guardian 2 Full Details -->
-    {% if child.guardian2_name %}
-    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
-        <h4 class="text-md font-semibold text-gray-800 mb-3">Guardian 2 - Complete Contact Info</h4>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Name</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_name }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Email</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_email|default:"N/A" }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Home Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_home_phone|default:"N/A" }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Work Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_work_phone|default:"N/A" }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Cell Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.guardian2_cell_phone|default:"N/A" }}</dd>
-            </div>
-        </dl>
-    </div>
-    {% endif %}
-    
-    <!-- Referral Source Details -->
-    {% if child.referral_source_type %}
-    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
-        <h4 class="text-md font-semibold text-gray-800 mb-3">Referral Source Information</h4>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Referred By</dt>
-                <dd class="mt-1 text-sm text-gray-900">
-                    {% if child.referral_source_type == 'parent_guardian' %}Parent/Guardian{% else %}Other Agency{% endif %}
-                </dd>
-            </div>
-            {% if child.referral_source_name %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Contact Name</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.referral_source_name }}</dd>
-            </div>
-            {% endif %}
-            {% if child.referral_source_phone %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Contact Phone</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.referral_source_phone }}</dd>
-            </div>
-            {% endif %}
-            {% if child.referral_agency_name %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Agency Name</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ child.referral_agency_name }}</dd>
-            </div>
-            {% endif %}
-            {% if child.referral_agency_address %}
-            <div class="sm:col-span-2">
-                <dt class="text-sm font-medium text-gray-500">Agency Address</dt>
-                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ child.referral_agency_address }}</dd>
-            </div>
-            {% endif %}
-            {% if child.agency_continuing_involvement %}
-            <div class="sm:col-span-2">
-                <span class="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">✓ Agency Continuing Involvement</span>
-            </div>
-            {% endif %}
-        </dl>
-    </div>
-    {% endif %}
-    
-    <!-- Program Attendance -->
-    {% if child.attends_childcare or child.attends_earlyon %}
-    <div class="px-4 py-4 sm:px-6 bg-white border-b border-gray-100">
-        <h4 class="text-md font-semibold text-gray-800 mb-3">Program Attendance</h4>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-            {% if child.attends_childcare %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500">Licensed Childcare</dt>
-                <dd class="mt-1 text-sm text-gray-900">
-                    <span class="font-medium text-green-600">✓ Attending</span>
-                    {% if child.childcare_centre %}<br>Centre: {{ child.childcare_centre.name }}{% endif %}
-                    {% if child.childcare_frequency %}<br>Frequency: {{ child.childcare_frequency }}{% endif %}
-                </dd>
-            </div>
-            {% endif %}
-            {% if child.attends_earlyon %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500">EarlyON Program</dt>
-                <dd class="mt-1 text-sm text-gray-900">
-                    <span class="font-medium text-green-600">✓ Attending</span>
-                    {% if child.earlyon_centre %}<br>Centre: {{ child.earlyon_centre.name }}{% endif %}
-                    {% if child.earlyon_frequency %}<br>Frequency: {{ child.earlyon_frequency }}{% endif %}
-                </dd>
-            </div>
-            {% endif %}
-        </dl>
-    </div>
-    {% endif %}
-    
-    <!-- Consent Status -->
-    <div class="px-4 py-4 sm:px-6 bg-white">
-        <h4 class="text-md font-semibold text-gray-800 mb-3">Consent & Documentation</h4>
-        <div class="flex items-center">
-            {% if child.referral_consent_on_file %}
-            <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
-            <span class="text-sm font-medium text-green-700">Referral consent form on file</span>
-            {% else %}
-            <svg class="h-5 w-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-            </svg>
-            <span class="text-sm font-medium text-yellow-700">Referral consent form status unknown</span>
-            {% endif %}
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Notes Section -->
-{% if child.notes %}
-<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-        <h3 class="text-lg leading-6 font-medium text-gray-900">General Notes</h3>
-    </div>
-    <div class="px-4 py-5 sm:p-6">
-        <p class="text-sm text-gray-900 whitespace-pre-wrap">{{ child.notes }}</p>
-    </div>
-</div>
-{% endif %}
 
 {% endblock %}
