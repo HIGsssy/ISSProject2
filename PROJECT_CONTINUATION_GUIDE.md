@@ -1,6 +1,6 @@
 # ISS Portal - Project Continuation Guide
-**Last Updated:** February 10, 2026  
-**Project Status:** Fully Operational - Phase 9 Age Progression Monthly Report Complete
+**Last Updated:** February 19, 2026  
+**Project Status:** Fully Operational - Phase 10 Case Notes & Intake Details Tab Complete
 
 ---
 
@@ -22,10 +22,11 @@
 15. [Staff-Scoped Reporting (Phase 7)](#staff-scoped-reporting-phase-7)
 16. [Child Record Hub & Visit Management (Phase 8)](#child-record-hub--visit-management-phase-8)
 17. [Age Progression Monthly Report (Phase 9)](#age-progression-monthly-report-phase-9)
-18. [Recent Bug Fixes](#recent-bug-fixes)
-19. [Testing Checklist](#testing-checklist)
-20. [Known Considerations](#known-considerations)
-21. [Development Commands](#development-commands)
+18. [Case Notes & Intake Details Tab (Phase 10)](#case-notes--intake-details-tab-phase-10)
+19. [Recent Bug Fixes](#recent-bug-fixes)
+20. [Testing Checklist](#testing-checklist)
+21. [Known Considerations](#known-considerations)
+22. [Development Commands](#development-commands)
 
 ---
 
@@ -79,7 +80,89 @@
 
 ## Recent Major Changes
 
-### 1. Child Record Hub & Visit Management System (February 5, 2026)
+### 1. Case Notes & Intake Details Tab (February 19, 2026)
+
+**New: Case Notes Feature (Phase 10)**
+
+A full case notes system was implemented for child records, covering the complete lifecycle from model to UI.
+
+**Model (`core/models.py` — `CaseNote`):**
+- `child` FK → Child (CASCADE, related_name `case_notes`)
+- `author` FK → User (PROTECT)
+- `content` → `EncryptedTextField` (PII-safe)
+- `created_at` / `updated_at` (auto timestamps)
+- `updated_by` FK → User (SET_NULL) — tracks last editor
+- `is_deleted` BooleanField (soft delete, default False)
+- `deleted_by` FK → User (SET_NULL)
+- `deleted_at` DateTimeField (null)
+- `@property is_edited` — True when `updated_at - created_at > 2 seconds`
+- `Meta.ordering = ['-created_at']`
+
+**Migration:** `core/migrations/0013_casenote.py` — applied automatically on `docker-compose up`
+
+**Serializer (`CaseNoteSerializer`):**
+- Computed fields: `can_edit`, `can_delete`, `is_edited`, `author_name`, `updated_by_name`
+- `child` in `read_only_fields` (auto-set from URL)
+- `update()` sets `updated_by = request.user`
+
+**ViewSet (`CaseNoteViewSet`):**
+- Scoped by `child_pk` URL kwarg
+- `?q=` full-text search by author name (server-side)
+- Staff may only edit their own notes; supervisors/admins can edit any
+- Soft-delete in `destroy()` + manual `AuditLog` entry written
+
+**API Endpoints (nested under child):**
+- `GET /api/children/<child_pk>/case-notes/` — list + search
+- `POST /api/children/<child_pk>/case-notes/` — create
+- `GET /api/children/<child_pk>/case-notes/<id>/` — retrieve
+- `PATCH /api/children/<child_pk>/case-notes/<id>/` — edit
+- `DELETE /api/children/<child_pk>/case-notes/<id>/` — soft-delete (supervisor/admin)
+
+**Audit Signal (`audit/signals.py`):**
+- `@receiver(post_save, sender='core.CaseNote')` logs `created` and `updated` actions
+- Deletions logged manually inside `CaseNoteViewSet.destroy()`
+
+**Admin (`CaseNoteAdmin`):**
+- Lists child, author, dates, `is_edited`, `is_deleted`, `deleted_by`
+- Shows all records including soft-deleted
+- Add permission disabled; delete restricted to admin/superuser
+
+**UI — Case Notes Tab (`child_detail.html`):**
+- Tab button enabled for all authenticated users
+- "Add Note" textarea with save/cancel
+- Search bar + sort toggle (ascending/descending by date)
+- Sort order persisted in `localStorage`
+- Note cards show: author name & role, two-part date (`Feb 19, 2026` + `12:53 PM`), "edited" badge when applicable
+- Inline edit form per card
+- Delete button visible only to supervisors/admins
+- All AJAX (no full page reload); tab state preserved via `?tab=case-notes` parameter
+
+**Intake Details Tab — Moved & Opened to All Staff:**
+- Previously a standalone `<details>` block visible only to supervisors/admins
+- Now a dedicated "Intake Details" tab inside the tabbed section
+- Accessible to all authenticated users (staff, supervisor, admin)
+- Six sub-sections: Address, Guardian 1, Guardian 2, Referral Source, Program Attendance, Consent & Documentation
+- Card-style layout with field labels and values
+
+**Bug Fixes (Phase 10):**
+- Fixed 400 error on case note POST — `child` field added to `read_only_fields` in serializer
+- Fixed tab reset on save/edit/delete — redirects to `?tab=case-notes`; IIFE on load restores tab via `history.replaceState`
+- Fixed mojibake encoding (`â€"`, `âœ"`, `â€¦`, etc.) — all special chars replaced with HTML entities (`&#10003;`, `&#9888;`, `&mdash;`, `&rarr;`)
+
+**Files Modified:**
+- `core/models.py` — Added `CaseNote` model
+- `core/migrations/0013_casenote.py` — New migration
+- `core/serializers.py` — Added `CaseNoteSerializer`
+- `core/viewsets.py` — Added `CaseNoteViewSet`
+- `core/api_urls.py` — Added 2 manual URL patterns for case notes
+- `core/views.py` — Updated `child_detail()` with `case_notes` queryset + `can_delete_notes` context
+- `core/admin.py` — Added `CaseNoteAdmin`
+- `audit/signals.py` — Added case note save signal
+- `templates/core/child_detail.html` — Case Notes tab (full UI), Intake Details tab (all users), encoding fixes
+
+---
+
+### 2. Child Record Hub & Visit Management System (February 5, 2026)
 
 **Redesigned Child Detail Page as Information Hub:**
 - Transformed from traditional single-column detail view to scalable multi-section hub
@@ -91,9 +174,10 @@
   
 - **Responsive Tabs Section** (below header):
   - Active "Visits" tab: Shows last 20 visits with link to full history
-  - Placeholder "Case Notes" tab: Future feature (disabled, grayed)
+  - **"Case Notes" tab** (Phase 10): Fully functional — add/edit/delete notes, AJAX search by author, sortable by date (asc/desc), sort persisted in `localStorage`; accessible to all authenticated users
+  - **"Intake Details" tab** (Phase 10): Address, guardians, referral source, program attendance, consent — accessible to all authenticated users
   - Placeholder "Support Plans" tab: Future feature (disabled, grayed)
-  - JavaScript-based tab switching (ready for future tabs)
+  - JavaScript-based tab switching with `?tab=` URL param restore via `history.replaceState`
   
 - **Preserved Full Intake Details** (supervisor/admin only):
   - All existing detailed information maintained below tabs
@@ -367,6 +451,26 @@ outcome = TextField(blank=True)
 outcome_date = DateField(null=True, blank=True)
 ```
 
+#### CaseNote (core/models.py)
+```python
+child = ForeignKey(Child, on_delete=CASCADE, related_name='case_notes')
+author = ForeignKey(User, on_delete=PROTECT, related_name='case_notes_authored')
+content = EncryptedTextField()  # PII-encrypted
+created_at = DateTimeField(auto_now_add=True)
+updated_at = DateTimeField(auto_now=True)
+updated_by = ForeignKey(User, on_delete=SET_NULL, null=True, blank=True, related_name='case_notes_edited')
+is_deleted = BooleanField(default=False)
+deleted_by = ForeignKey(User, on_delete=SET_NULL, null=True, blank=True, related_name='case_notes_deleted')
+deleted_at = DateTimeField(null=True, blank=True)
+
+@property
+def is_edited(self) -> bool:
+    return (self.updated_at - self.created_at).total_seconds() > 2
+
+class Meta:
+    ordering = ['-created_at']
+```
+
 #### AuditLog (audit/models.py)
 ```python
 user = ForeignKey(User, on_delete=SET_NULL, null=True)
@@ -410,6 +514,10 @@ ROLE_CHOICES = [
 | Edit any visit | ❌ | ✅ | ✅ |
 | View reports | ✅ (limited) | ✅ (all) | ✅ (all) |
 | CSV import | ❌ | ✅ | ✅ |
+| Add/edit own case notes | ✅ | ✅ | ✅ |
+| Edit any case note | ❌ | ✅ | ✅ |
+| Delete (soft) case notes | ❌ | ✅ | ✅ |
+| View intake details tab | ✅ | ✅ | ✅ |
 
 ### Default Credentials
 - Username: `admin`
@@ -720,6 +828,13 @@ def update_child_caseload_status_on_delete(sender, instance, **kwargs):
 ### Centres Endpoints
 - `GET /api/centres/` - List centres
 - `GET /api/centres/{id}/` - Centre detail
+
+### Case Notes Endpoints (nested under child)
+- `GET /api/children/{child_id}/case-notes/` - List case notes for a child; supports `?q=` author name search
+- `POST /api/children/{child_id}/case-notes/` - Create a new case note (author and child auto-set)
+- `GET /api/children/{child_id}/case-notes/{id}/` - Retrieve a single case note
+- `PATCH /api/children/{child_id}/case-notes/{id}/` - Edit a case note (staff: own only; supervisor/admin: any)
+- `DELETE /api/children/{child_id}/case-notes/{id}/` - Soft-delete a case note (supervisor/admin only)
 
 ### API Authentication
 - Session-based (uses Django sessions)
@@ -1260,6 +1375,83 @@ Visit: `http://localhost/reports/age-progressions/?export=csv&year=2026&month=2`
 
 ---
 
+## Case Notes & Intake Details Tab (Phase 10)
+
+### Overview
+Full case notes system for child records, plus restructuring of the Intake Details block into a tab accessible to all staff roles.
+
+### CaseNote Model
+
+```python
+class CaseNote(models.Model):
+    child = ForeignKey(Child, on_delete=CASCADE, related_name='case_notes')
+    author = ForeignKey(User, on_delete=PROTECT, related_name='case_notes_authored')
+    content = EncryptedTextField()
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
+    updated_by = ForeignKey(User, on_delete=SET_NULL, null=True, blank=True)
+    is_deleted = BooleanField(default=False)
+    deleted_by = ForeignKey(User, on_delete=SET_NULL, null=True, blank=True)
+    deleted_at = DateTimeField(null=True, blank=True)
+
+    @property
+    def is_edited(self):
+        return (self.updated_at - self.created_at).total_seconds() > 2
+
+    class Meta:
+        ordering = ['-created_at']
+```
+
+### API Design
+
+Case notes use manually registered nested URL patterns (not DRF router):
+
+```python
+# core/api_urls.py
+path('children/<int:child_pk>/case-notes/', CaseNoteViewSet.as_view({'get': 'list', 'post': 'create'})),
+path('children/<int:child_pk>/case-notes/<int:pk>/', CaseNoteViewSet.as_view({'get': 'retrieve', 'patch': 'update', 'delete': 'destroy'})),
+```
+
+All endpoints are session-authenticated and CSRF-protected. The `child` field is set server-side from the URL; clients never send it.
+
+### Permissions
+
+| Action | Staff | Supervisor | Admin |
+|--------|-------|------------|-------|
+| Create case note | ✅ | ✅ | ✅ |
+| Edit own case note | ✅ | ✅ | ✅ |
+| Edit any case note | ❌ | ✅ | ✅ |
+| Soft-delete case note | ❌ | ✅ | ✅ |
+| View deleted notes | ❌ | ❌ | ✅ (admin only) |
+
+### Tab UI Features
+
+- **Add note**: Textarea with Save / Cancel; minimum 1 character
+- **Note cards**: Author name + role badge, two-part timestamp, inline edit, delete (supervisor/admin)
+- **"Edited" badge**: Shown when `is_edited` is True; displays `updated_by` name
+- **Search**: AJAX `?q=` author name filter; real-time as user types
+- **Sort**: Toggle button (Newest First / Oldest First); persisted in `localStorage`
+- **Tab persistence**: Page reloads redirect to `?tab=case-notes`; IIFE on load restores tab via `history.replaceState`
+
+### Intake Details Tab
+
+The full intake data block (address, guardians, referral source, program attendance, consent) was moved from a supervisor/admin-only `<details>` block into a dedicated **"Intake Details"** tab within the tabbed child detail page. It is now accessible to all authenticated users.
+
+Six sub-sections in card layout:
+1. Address
+2. Guardian 1
+3. Guardian 2
+4. Referral Source
+5. Program Attendance
+6. Consent & Documentation
+
+### Audit Logging
+
+- `CaseNote` create/update: Automatic via `post_save` signal in `audit/signals.py`
+- `CaseNote` delete: Manual `AuditLog` entry in `CaseNoteViewSet.destroy()` (action = `'delete'`)
+
+---
+
 ## Recent Bug Fixes
 
 ### 1. Visit Dropdown Empty Parentheses (Fixed Jan 23, 2026)
@@ -1662,8 +1854,8 @@ docker-compose exec web python manage.py migrate core 0006 --fake
 This ISS Portal project is a fully functional child welfare case management system with:
 - ✅ Three-field status system (overall_status, caseload_status, on_hold)
 - ✅ Role-based access control (staff, supervisor, admin)
-- ✅ PII encryption at rest
-- ✅ Comprehensive audit logging
+- ✅ PII encryption at rest (including case note content)
+- ✅ Comprehensive audit logging (including case note create/edit/delete)
 - ✅ CSV bulk import with validation
 - ✅ Automated caseload status updates via signals
 - ✅ RESTful API with Django REST Framework
@@ -1671,27 +1863,27 @@ This ISS Portal project is a fully functional child welfare case management syst
 - ✅ 8 fully updated templates reflecting new status system
 - ✅ CSS badge styling with !important flags for proper color display
 - ✅ Visit centre pre-selection based on child's assigned centre
+- ✅ Case Notes — per-child, encrypted, authored, sortable, searchable, soft-deleted with audit trail
+- ✅ Intake Details tab — accessible to all staff roles
+- ✅ Tabbed child detail page with tab-state persistence across reloads
+- ✅ Age Progression Monthly Report with CSV export
 
-**Current Status:** Production-ready after recent status refactoring (Jan 23, 2026)
+**Current Status:** Production-ready — Phase 10 Case Notes & Intake Details Tab complete (February 19, 2026)
 
-**Recent Work (Jan 23, 2026):** 
-1. Complete status system restructure from single field to three fields
-2. Updated all backend code (models, views, serializers, viewsets, admin)
-3. Updated all 8 templates to display three-field status system
-4. Fixed CSS badge styling issues with !important flags
-5. Fixed visit dropdown empty parentheses bug
-6. Added centre pre-selection when logging visits from child pages
+**Recent Work (February 19, 2026 — Phase 10):**
+1. Implemented full `CaseNote` model with encryption, soft-delete, and audit trail
+2. Added `CaseNoteSerializer` and `CaseNoteViewSet` with nested child-scoped API
+3. Built complete Case Notes tab UI: add, edit, delete (soft), AJAX search, date sort
+4. Moved Intake Details from supervisor-only block to a tab accessible to all staff
+5. Fixed 400 POST error (added `child` to serializer `read_only_fields`)
+6. Fixed tab state loss on page reload (`?tab=case-notes` redirect + IIFE restore)
+7. Fixed mojibake encoding throughout `child_detail.html` (replaced with HTML entities)
 
-**Latest Enhancements:**
-- CSS badge styling now properly overrides Tailwind CSS defaults
-- Visit form automatically selects child's assigned centre when accessed via "Log Visit" button
-- All status badges display with correct colors (green, gray, blue, purple, orange, yellow)
-
-**Next Session:** Can proceed with enhancements, reporting features, or additional functionality as needed.
+**Next Session:** Can proceed with Support Plans tab implementation, additional reporting, or other enhancements.
 
 ---
 
-**Document Version:** 1.1  
-**Last Verified:** January 23, 2026  
+**Document Version:** 1.2  
+**Last Verified:** February 19, 2026  
 **Container Status:** Running (web, db, nginx)  
-**Migration Status:** 0006_restructure_child_status applied successfully
+**Migration Status:** 0013_casenote applied successfully

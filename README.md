@@ -8,13 +8,15 @@ A containerized Django application for managing children's inclusion support ser
 - **Child Management**: Track children with optional centre associations and non-caseload support
 - **Visit Tracking**: Mobile-friendly visit logging with time validation and 7-hour flagging
 - **Caseload Management**: Primary and secondary staff assignments with full history
+- **Case Notes**: Date-stamped, author-attributed case notes per child; editable by author or supervisor/admin; soft-deleted by supervisor/admin with full audit trail; sortable and searchable
+- **Child Record Hub**: Tabbed child detail page with Visits, Case Notes, Intake Details, and Support Plans (coming soon) tabs — accessible to all staff roles
 - **Reporting**: Comprehensive reports with role-based access (Staff view own visits, Supervisors/Admins see all reports with CSV export)
   - Children Served by Age Group
   - Monthly Intake Trends
   - Staff Productivity & Caseloads
   - Age Out Reports (13+)
-  - **Age Progressions Report** (NEW - Phase 9): Track monthly transitions through age categories (Infant→Toddler, etc.) with CSV export
-- **Audit Logging**: Complete change tracking for all key entities
+  - **Age Progressions Report** (Phase 9): Track monthly transitions through age categories (Infant→Toddler, etc.) with CSV export
+- **Audit Logging**: Complete change tracking for all key entities including case note creation, edits, and soft-deletions
 - **Centre Management**: View centre contact information, bulk import via CSV (admin/supervisor only)
 - **Custom Theming**: Customizable logo, colors, site title, and header styling via admin interface
 - **Production CSS**: Tailwind CSS compiled in production Docker build with full utility classes
@@ -133,12 +135,17 @@ For local development without Docker:
 - View all children
 - Maintain "My Caseload" list (primary assignments + visited children)
 - Create and edit own visit records
+- Add and edit own case notes on any child record
+- View intake details for any child (address, guardians, referral source, program attendance)
 - View own visits in Reports dashboard (filtered automatically)
 - Cannot manage users or reassign caseloads
 - Cannot access other reports or override visit filters
+- Cannot delete case notes
 
 ### Supervisor
 - Full read/write access to children, centres, visits
+- Add and edit case notes on any child record
+- Soft-delete case notes (any user's notes)
 - Manage caseload assignments
 - Bulk reassign caseloads
 - Generate and export reports
@@ -221,6 +228,10 @@ All API endpoints require authentication via Django session.
 - `GET /api/visits/flagged/` - Visits flagged for review
 - `GET /api/caseloads/` - Caseload assignments
 - `POST /api/caseloads/bulk-reassign/` - Bulk reassign (supervisor+)
+- `GET /api/children/<id>/case-notes/` - List case notes for a child
+- `POST /api/children/<id>/case-notes/` - Create case note for a child
+- `PATCH /api/children/<id>/case-notes/<note_id>/` - Edit a case note
+- `DELETE /api/children/<id>/case-notes/<note_id>/` - Soft-delete a case note (supervisor/admin only)
 
 ### Reports (Supervisor/Admin/Auditor only)
 
