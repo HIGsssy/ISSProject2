@@ -128,11 +128,19 @@ def audit_visit_changes(sender, instance, created, **kwargs):
     user = get_current_user()
     
     if created:
+        # Handle both child visits and site visits
+        if instance.child:
+            visit_description = f"Visit for {instance.child.full_name} on {instance.visit_date} created"
+        elif instance.centre:
+            visit_description = f"Site visit at {instance.centre.name} on {instance.visit_date} created"
+        else:
+            visit_description = f"Visit on {instance.visit_date} created"
+        
         AuditLog.log_action(
             user=user,
             entity=instance,
             action='created',
-            new_value=f"Visit for {instance.child.full_name} on {instance.visit_date} created"
+            new_value=visit_description
         )
     else:
         # Track all changes to visit records (important for immutability tracking)

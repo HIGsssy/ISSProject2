@@ -125,10 +125,17 @@
                     class="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                 Update Visit
             </button>
+            {% if visit.child %}
             <a href="{% url 'child_detail' visit.child.pk %}" 
                class="flex-1 inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Cancel
             </a>
+            {% else %}
+            <a href="{% url 'dashboard' %}" 
+               class="flex-1 inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Cancel
+            </a>
+            {% endif %}
         </div>
     </form>
 </div>
@@ -195,7 +202,11 @@
             });
             
             if (response.ok) {
+                {% if visit.child %}
                 window.location.href = '{% url "child_detail" visit.child.pk %}';
+                {% else %}
+                window.location.href = '{% url "dashboard" %}';
+                {% endif %}
             } else {
                 const errorData = await response.json();
                 alert('Error updating visit: ' + JSON.stringify(errorData));

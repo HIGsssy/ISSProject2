@@ -9,6 +9,11 @@ A containerized Django application for managing children's inclusion support ser
 - **Visit Tracking**: Mobile-friendly visit logging with time validation and 7-hour flagging
 - **Caseload Management**: Primary and secondary staff assignments with full history
 - **Reporting**: Comprehensive reports with role-based access (Staff view own visits, Supervisors/Admins see all reports with CSV export)
+  - Children Served by Age Group
+  - Monthly Intake Trends
+  - Staff Productivity & Caseloads
+  - Age Out Reports (13+)
+  - **Age Progressions Report** (NEW - Phase 9): Track monthly transitions through age categories (Infant→Toddler, etc.) with CSV export
 - **Audit Logging**: Complete change tracking for all key entities
 - **Centre Management**: View centre contact information, bulk import via CSV (admin/supervisor only)
 - **Custom Theming**: Customizable logo, colors, site title, and header styling via admin interface

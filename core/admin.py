@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, ThemeSetting
+from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, ThemeSetting, AgeProgressionEvent
 
 
 @admin.register(Centre)
@@ -523,3 +523,54 @@ class ThemeAdmin(admin.ModelAdmin):
         from django.shortcuts import redirect
         obj = ThemeSetting.get_theme()
         return redirect(f'/admin/core/themesetting/{obj.id}/change/')
+
+
+@admin.register(AgeProgressionEvent)
+class AgeProgressionEventAdmin(admin.ModelAdmin):
+    """Admin interface for viewing age progression events."""
+    
+    list_display = ['child_name', 'transition_type', 'transition_date', 'age_in_months', 'recorded_at']
+    list_filter = ['transition_date', 'new_category', 'previous_category']
+    search_fields = ['child__first_name', 'child__last_name']
+    ordering = ['-transition_date']
+    
+    fieldsets = (
+        ('Event Details', {
+            'fields': ('child', 'previous_category', 'new_category')
+        }),
+        ('Timing & Age', {
+            'fields': ('transition_date', 'age_in_months')
+        }),
+        ('Metadata', {
+            'fields': ('recorded_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['recorded_at']
+    
+    def child_name(self, obj):
+        """Display child full name with link."""
+        return format_html(
+            '<a href="{}">{}</a>',
+            reverse('admin:core_child_change', args=[obj.child.id]),
+            obj.child.full_name
+        )
+    child_name.short_description = 'Child'
+    
+    def transition_type(self, obj):
+        """Display transition as arrow."""
+        return f"{obj.previous_category} → {obj.new_category}"
+    transition_type.short_description = 'Transition'
+    
+    def has_add_permission(self, request):
+        """Prevent manual creation - only created by signal handler and backfill command."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Only admins and superusers can delete progression events."""
+        if request.user.is_superuser:
+            return True
+        if hasattr(request.user, 'role') and request.user.role in ['admin']:
+            return True
+        return False

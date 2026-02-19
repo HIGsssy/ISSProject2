@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
+from django.core.paginator import Paginator
 from .models import Child, Visit, Centre, VisitType, CaseloadAssignment, CommunityPartner, Referral
 from accounts.models import User
 from .utils.csv_import import ChildCSVImporter, CentreCSVImporter, CSVImportError
@@ -132,9 +133,11 @@ def my_caseload(request):
 @login_required
 def all_children(request):
     """View all children."""
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    
     children = Child.objects.select_related('centre').prefetch_related('caseload_assignments__staff')
     
-    # Apply filters
+    # Apply database-level filters
     overall_status_filter = request.GET.get('overall_status', 'active')
     if overall_status_filter != 'all':
         children = children.filter(overall_status=overall_status_filter)
@@ -149,21 +152,48 @@ def all_children(request):
     elif on_hold_filter == 'no':
         children = children.filter(on_hold=False)
     
-    # Apply search if provided
-    search = request.GET.get('search')
+    # Fetch all matching children and prepare for search filtering
+    all_children = list(children)
+    total_before_search = len(all_children)
+    
+    # Apply search filter on encrypted fields (application-level)
+    search = request.GET.get('search', '').strip()
+    filtered_children = all_children
+    search_applied = False
+    
     if search:
-        children = children.filter(
-            Q(first_name__icontains=search) |
-            Q(last_name__icontains=search) |
-            Q(guardian1_name__icontains=search)
-        )
+        # Enforce minimum 3 characters
+        if len(search) >= 3:
+            search_lower = search.lower()
+            filtered_children = [
+                child for child in all_children
+                if search_lower in child.first_name.lower() or search_lower in child.last_name.lower()
+            ]
+            search_applied = True
+        else:
+            # Search too short - show validation message but don't filter
+            search = None
+            filtered_children = all_children
+    
+    # Paginate the filtered results (50 per page)
+    paginator = Paginator(filtered_children, 50)
+    page_num = request.GET.get('page', 1)
+    
+    try:
+        page_obj = paginator.page(page_num)
+    except (PageNotAnInteger, EmptyPage):
+        page_obj = paginator.page(1)
     
     context = {
-        'children': children,
+        'page_obj': page_obj,
+        'children': page_obj.object_list,
+        'total_children': total_before_search,
+        'total_matches': len(filtered_children),
         'overall_status_filter': overall_status_filter,
         'caseload_status_filter': caseload_status_filter,
         'on_hold_filter': on_hold_filter,
         'search': search,
+        'search_applied': search_applied,
         'view_type': 'all',
     }
     
@@ -200,6 +230,9 @@ def child_detail(request, pk):
     # Get recent visits
     visits = child.visits.select_related('staff', 'centre', 'visit_type').order_by('-visit_date', '-start_time')[:20]
     
+    # Get total visits count
+    total_visits_count = child.visits.count()
+    
     # Get referrals with optional filtering
     referrals = child.referrals.select_related('community_partner', 'referred_by', 'status_updated_by')
     
@@ -216,20 +249,48 @@ def child_detail(request, pk):
     
     referrals = referrals.order_by('-referral_date')
     
+    # Check if current user can discharge this child
+    staff_can_discharge = child.can_be_discharged_by(request.user)
+    
     context = {
         'child': child,
         'caseload_assignments': caseload_assignments,
         'visits': visits,
+        'total_visits_count': total_visits_count,
         'referrals': referrals,
         'referral_status_filter': referral_status_filter,
+        'staff_can_discharge': staff_can_discharge,
     }
     
     return render(request, 'core/child_detail.html', context)
 
 
 @login_required
+def child_visits(request, pk):
+    """View all visits for a specific child."""
+    child = get_object_or_404(Child, pk=pk)
+    
+    # Get all visits for this child, ordered by most recent first
+    visits = child.visits.select_related('staff', 'centre', 'visit_type').order_by('-visit_date', '-start_time')
+    
+    # Apply pagination
+    paginator = Paginator(visits, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'child': child,
+        'page_obj': page_obj,
+        'visits': page_obj.object_list,
+        'total_visits_count': visits.count(),
+    }
+    
+    return render(request, 'core/child_visits.html', context)
+
+
+@login_required
 def add_visit(request):
-    """Add visit form."""
+    """Add child visit form."""
     if request.method == 'POST':
         # Handle form submission (this will be handled by API in practice)
         return redirect('dashboard')
@@ -274,6 +335,48 @@ def add_visit(request):
     }
     
     return render(request, 'core/add_visit.html', context)
+
+
+@login_required
+def add_site_visit(request):
+    """Add site visit form."""
+    if request.method == 'POST':
+        # Handle form submission (this will be handled by API in practice)
+        return redirect('dashboard')
+    
+    centres = Centre.objects.filter(status='active').order_by('name')
+    visit_types = VisitType.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'centres': centres,
+        'visit_types': visit_types,
+    }
+    
+    return render(request, 'core/add_site_visit.html', context)
+
+
+@login_required
+def staff_visits(request):
+    """View all visits for the current staff member."""
+    user = request.user
+    
+    # Get all visits for this staff member, ordered by most recent first
+    visits = Visit.objects.filter(
+        staff=user
+    ).select_related('child', 'centre', 'visit_type').order_by('-visit_date', '-created_at')
+    
+    # Apply pagination
+    paginator = Paginator(visits, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'visits': page_obj.object_list,
+        'total_visits_count': visits.count(),
+    }
+    
+    return render(request, 'core/staff_visits.html', context)
 
 
 @login_required
@@ -388,7 +491,10 @@ def edit_child(request, pk):
             # Update child information
             child.first_name = request.POST.get('first_name', '').strip()
             child.last_name = request.POST.get('last_name', '').strip()
-            child.date_of_birth = request.POST.get('date_of_birth')
+            dob_str = request.POST.get('date_of_birth', '').strip()
+            if dob_str:
+                from datetime import date
+                child.date_of_birth = date.fromisoformat(dob_str)
             
             # Address fields
             child.address_line1 = request.POST.get('address_line1', '').strip()
@@ -497,9 +603,9 @@ def discharge_child(request, pk):
     """Discharge a child from services."""
     child = get_object_or_404(Child, pk=pk)
     
-    # Check permissions - staff, supervisors, and admins can discharge
-    if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['staff', 'supervisor', 'admin'])):
-        raise PermissionDenied("You don't have permission to discharge children.")
+    # Check permissions using helper method
+    if not child.can_be_discharged_by(request.user):
+        raise PermissionDenied("You don't have permission to discharge this child.")
     
     # Prevent discharging already discharged children
     if child.overall_status == 'discharged':

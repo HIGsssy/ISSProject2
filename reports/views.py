@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import csv
 
-from core.models import Visit, Child, Centre, CaseloadAssignment
+from core.models import Visit, Child, Centre, CaseloadAssignment, AgeProgressionEvent
 from accounts.models import User
 
 
@@ -505,6 +505,14 @@ def age_out_report(request):
     # Sort monthly data by date (oldest first)
     monthly_age_out_list = sorted(monthly_age_out.values(), key=lambda x: x['date'])
     
+    # Calculate bar widths for monthly data visualization
+    if monthly_age_out_list:
+        max_count = max(item['count'] for item in monthly_age_out_list)
+        max_bar_width = 300  # Maximum bar width in pixels
+        for item in monthly_age_out_list:
+            # Calculate proportional bar width (20px per count, up to max_bar_width)
+            item['bar_width'] = min((item['count'] * 20), max_bar_width) if max_count > 0 else 0
+    
     # Centre breakdown
     centre_breakdown = {}
     for child_data in children_data:
@@ -895,3 +903,147 @@ def export_site_visit_summary_csv(total_visits, total_hours, centre_breakdown, v
         writer.writerow([type_name, count])
     
     return response
+
+
+@login_required
+@user_passes_test(can_access_reports)
+def age_progression_report(request):
+    """Age Progression Monthly Report - track children advancing through age categories.
+    
+    Filters:
+    - year: Report year
+    - month: Report month (1-12)
+    - centre: Optional centre filter
+    
+    Accessible to: Admin, Supervisor, Auditor (NOT staff)
+    """
+    # Restrict staff from accessing this report
+    user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'
+    if user_is_staff:
+        # Redirect to dashboard - staff cannot access this report
+        return render(request, 'reports/access_denied.html', {
+            'page_title': 'Access Denied',
+            'message': 'Age Progression reports are only available to supervisory staff.'
+        })
+    
+    # Get filter parameters
+    today = timezone.now().date()
+    year = request.GET.get('year', str(today.year))
+    month = request.GET.get('month', str(today.month))
+    centre_id = request.GET.get('centre', '')
+    
+    try:
+        year = int(year)
+        month = int(month)
+        if not (1 <= month <= 12):
+            month = today.month
+            year = today.year
+    except (ValueError, TypeError):
+        month = today.month
+        year = today.year
+    
+    # Query age progression events for the selected month/year
+    events = AgeProgressionEvent.objects.filter(
+        transition_date__year=year,
+        transition_date__month=month
+    ).select_related('child', 'child__centre').order_by('transition_date')
+    
+    # Apply centre filter if provided
+    if centre_id:
+        try:
+            centre_id = int(centre_id)
+            events = events.filter(child__centre_id=centre_id)
+        except (ValueError, TypeError):
+            pass
+    
+    # Group events by transition type
+    transitions_dict = {}
+    for event in events:
+        key = f"{event.previous_category} → {event.new_category}"
+        if key not in transitions_dict:
+            transitions_dict[key] = []
+        transitions_dict[key].append(event)
+    
+    # Prepare transition summary (sorted by transition type)
+    transitions = []
+    for trans_type in sorted(transitions_dict.keys()):
+        events_list = transitions_dict[trans_type]
+        transitions.append({
+            'type': trans_type,
+            'count': len(events_list),
+            'events': events_list
+        })
+    
+    # Get available centres for filter dropdown
+    active_centres = Centre.objects.filter(status='active').order_by('name')
+    
+    # Get year choices (current year and 2 years back)
+    year_choices = list(range(today.year - 2, today.year + 1))
+    
+    # Month names for display
+    month_names = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
+    # Calculate summary statistics
+    summary = {
+        'total_progressions': len(events),
+        'transition_types': len(transitions),
+        'by_transition': {trans['type']: trans['count'] for trans in transitions}
+    }
+    
+    # Handle CSV export
+    if request.GET.get('export') == 'csv':
+        return export_age_progression_csv(year, month, centre_id, events)
+    
+    context = {
+        'page_title': 'Age Progressions Report',
+        'year': year,
+        'month': month,
+        'month_name': datetime(year, month, 1).strftime('%B'),
+        'centre_id': centre_id,
+        'transitions': transitions,
+        'summary': summary,
+        'centres': active_centres,
+        'year_choices': year_choices,
+        'month_choices': list(zip(range(1, 13), month_names)),
+    }
+    
+    return render(request, 'reports/age_progression.html', context)
+
+
+def export_age_progression_csv(year, month, centre_id, events):
+    """Export age progression events to CSV."""
+    month_name = datetime(year, month, 1).strftime('%B')
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="age_progressions_{month_name}_{year}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Header
+    writer.writerow(['Age Progressions Report'])
+    writer.writerow(['Period:', f"{month_name} {year}"])
+    writer.writerow([])
+    
+    # Summary statistics
+    total = len(events)
+    writer.writerow(['Total Progressions:', total])
+    writer.writerow([])
+    
+    # Detail table header
+    writer.writerow(['Transition Type', 'Child Name', 'Centre', 'Age at Transition (months)', 'Date'])
+    
+    # Detail rows
+    for event in events.order_by('new_category', 'child__last_name', 'child__first_name'):
+        transit_type = f"{event.previous_category} → {event.new_category}"
+        child_name = event.child.full_name
+        centre_name = event.child.centre.name if event.child.centre else ''
+        age_months = round(float(event.age_in_months), 2)
+        date_str = event.transition_date.strftime('%Y-%m-%d')
+        
+        writer.writerow([transit_type, child_name, centre_name, age_months, date_str])
+    
+    return response
+

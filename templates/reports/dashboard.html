@@ -149,6 +149,28 @@
             </div>
         </div>
 
+        <!-- Age Progressions Report -->
+        <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div class="p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-violet-500 rounded-md p-3">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6m16-10h.01M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-medium text-gray-900">Age Progressions</h3>
+                        <p class="text-sm text-gray-500 mt-1">Monthly tracking of age category transitions</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <a href="{% url 'reports:age_progression' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-violet-600 hover:bg-violet-700">
+                        View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- Staff Site Visits Report -->
         <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
             <div class="p-6">

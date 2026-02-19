@@ -1,5 +1,5 @@
 # ISS Portal - Project Status Summary
-**Last Updated: February 4, 2026**
+**Last Updated: February 10, 2026**
 
 ## Project Overview
 Django-based web application for managing children's services with staff caseload management, visit tracking, centre management, comprehensive reporting with staff-scoped access, custom theming, and CSV import capabilities.
@@ -12,92 +12,269 @@ Django-based web application for managing children's services with staff caseloa
 - Nginx reverse proxy
 - Tailwind CSS 3.4 (production-compiled)
 
-## Latest Implementation: Phase 7 - Staff-Scoped Reporting (February 4, 2026)
+## Latest Implementation: Phase 9 - Age Progression Monthly Report (February 10, 2026)
 
-### Staff Reporting Access Control
+### Age Category Transition Tracking System
 
-**Problem Solved:**
-- Staff members (front-line workers) had no access to view their own visit data
-- Supervisors/Admins could see all reports but staff had no visibility
-- Staff required a way to track their own hours and visits
+**Objectives Completed:**
+1. ✅ Created `AgeProgressionEvent` model with indexed queries
+2. ✅ Implemented post-save signal for real-time transition detection
+3. ✅ Built management command for 3–6 month historical backfill
+4. ✅ Developed report view with month/year/centre filtering
+5. ✅ Created responsive report template with summary cards
+6. ✅ Added dashboard card (Violet) for report access
+7. ✅ Implemented CSV export with child names and metadata
+8. ✅ Integrated with admin interface (read-only for staff)
 
-**Solution Implemented:**
+**Age Progression Event Model:**
+- `child` (FK to Child, CASCADE)
+- `previous_category` (infant, toddler, preschooler, jk_sk, school_age, other)
+- `new_category` (same choices)
+- `transition_date` (DateField, calendar month-based)
+- `age_in_months` (DecimalField for precision)
+- `recorded_at` (DateTimeField, auto-timestamp)
+- Indexes: `(child, transition_date)`, `(transition_date)` for efficiency
 
-**Permission Architecture:**
-- Updated `can_access_reports` property in `accounts/models.py` to include `'staff'` role
-- Updated `can_access_reports()` function in `reports/views.py` to include `'staff'` role
-- Both checks must be synchronized to prevent login redirect loops
+**Age Categories (Defined in `core/utils/age_utils.py`):**
+- **Infant**: 0–18 months
+- **Toddler**: 18–30 months
+- **Preschooler**: 30–45.6 months (3.8 years)
+- **JK/SK**: 45.6–72 months (6 years)
+- **School Age**: 72–144 months (12 years)
+- **Other**: 144+ months
 
-**Visits Report Filtering:**
-- Modified `visits_report()` view to detect staff users with pattern: `user_is_staff = hasattr(request.user, 'role') and request.user.role == 'staff'`
-- Staff auto-filters to view only their own visits: `Visit.objects.filter(staff=request.user)`
-- Staff cannot override filter via URL parameters (silently ignored in view)
-- Staff can still filter by: date range, child, centre, visit type
-- CSV export button hidden for staff users (permission restriction via `if export_format == 'csv' and not user_is_staff`)
+**Signal Handler (`core/signals.py`):**
+- Hooks into Child `post_save` signal
+- Detects category changes by comparing current age to most recent `AgeProgressionEvent`
+- Only creates events for **upward transitions** (age categories increase monotonically)
+- Prevents duplicate events on same day via idempotency check
+- Applies to new transitions going forward (no retroactive signal triggers)
 
-**Dashboard Restrictions:**
-- Modified `reports_dashboard()` view to pass `user_is_staff` context variable
-- Updated `templates/reports/dashboard.html` to conditionally render reports:
-  - Staff users see: Only "Visits Report" card
-  - Supervisors/Admins see: All 9 report cards (Children Served, Visits, Staff Summary, Caseload, Age Out, Month Added, Staff Site Visits, Site Visit Summary)
-- Dashboard page title and description change based on user role
+**Management Command (`core/management/commands/backfill_age_progressions.py`):**
+```bash
+# Usage:
+docker-compose exec web python manage.py backfill_age_progressions --months=6 [--dry-run]
+```
+- Parameters:
+  - `--months=N`: Lookback window (default 6 months)
+  - `--dry-run`: Preview changes without creating
+- Process:
+  1. Samples age at calendar month boundaries (1st of each month)
+  2. Calculates age using `date_of_birth + relativedelta`
+  3. Detects upward transitions month-to-month
+  4. Creates events idempotently (skips if exists)
+  5. Outputs progress every 50 children
+  6. Prints summary by transition type
 
-**UI/Template Updates:**
-- `templates/reports/visits_report.html` enhancements for staff:
-  - Blue info box explaining staff can only view own visits
-  - Staff filter dropdown hidden (cannot change staff assignment)
-  - Staff column removed from table (redundant for staff view)
-  - CSV export button replaced with permission message
-  - Dynamic table colspan based on user role (6 for staff, 7 for others)
-- `templates/reports/dashboard.html` conditional rendering:
-  - All non-visits reports wrapped in `{% if not user_is_staff %}...{% endif %}`
-  - Dashboard subtitle changes based on role
+**Report View (`reports/views.py:age_progression_report`):**
+- URL: `/reports/age-progressions/`
+- GET Parameters:
+  - `year`: Report year (required, defaults to current)
+  - `month`: Report month 1–12 (required, defaults to current)
+  - `centre`: Optional centre filter
+  - `export=csv`: Export to CSV if present
+- Access: Admin/Supervisor/Auditor only (staff users redirected)
+- Query: `AgeProgressionEvent.objects.filter(transition_date__year=year, transition_date__month=month)`
+- Groups by transition type, calculates summary statistics
+- Returns: summary counts, transitions list with child details
 
-**Navigation:**
-- Staff users now see "Reports" link in navigation menu
-- Link points to reports dashboard with auto-filtered visits view
-- No separate staff-only report page needed
+**Report Template (`templates/reports/age_progression.html`):**
+- **Filter Form**: Year, Month, Centre (optional) dropdowns + Apply button
+- **Summary Card**: 
+  - "X progressions in [Month] [Year]" headline
+  - Breakdown by transition type (infant→toddler, etc.)
+- **Transition Type Cards**: 
+  - Preview cards showing count per transition type
+  - Color-coded (purple theme)
+- **Detail Table**:
+  - Columns: Transition Type, Child Name (linked), Centre, Age at Transition (months), Date
+  - Sortable within transition groups
+  - "No data" message for empty periods
+- **CSV Export Button**: Downloads with filtered data
+- **Responsive Design**: Mobile-friendly with horizontal scroll on small screens
 
-**Result:**
-- ✅ Staff can access reports without login loop
-- ✅ Staff see only their own visit data automatically
-- ✅ Staff cannot bypass filters or view sensitive reports
-- ✅ Staff can filter by date, child, centre for their visits
-- ✅ CSV export disabled for staff users
-- ✅ Dashboard shows only appropriate reports for staff role
-- ✅ Permission architecture is synchronized and secure
+**Dashboard Card:**
+- **Location**: Reports dashboard, after "Month Added Report"
+- **Color**: Violet (`bg-violet-500`, `hover:bg-violet-700`)
+- **Icon**: Trending growth chart
+- **Title**: "Age Progressions"
+- **Description**: "Monthly tracking of age category transitions"
+- **Access**: Admin/Supervisor/Auditor (same as view)
 
-**Files Modified:**
-- `accounts/models.py` - Added `'staff'` to `can_access_reports` property
-- `reports/views.py` - Added `'staff'` to `can_access_reports()` function, staff detection and auto-filtering in `visits_report()`, staff context in `reports_dashboard()`
-- `templates/reports/visits_report.html` - Staff-specific info box, hidden controls, hidden columns, disabled CSV
-- `templates/reports/dashboard.html` - Conditional rendering of non-visits reports
+**Admin Interface (`core/admin.py:AgeProgressionEventAdmin`):**
+- List Display: Child name (linked), Transition (e.g., infant→toddler), Date, Age
+- Filters: By transition_date, new_category, previous_category
+- Search: By child first_name, last_name
+- Read-Only: Add/Edit disabled (only signal handler and backfill create)
+- Delete Restricted: Admins/Superusers only
 
-**Testing Verified:**
-- ✅ Staff login doesn't redirect loop
-- ✅ Reports navigation link visible to staff
-- ✅ Staff dashboard shows only Visits Report
-- ✅ Visits report auto-filters to staff member's visits
-- ✅ Staff can filter by date, child, centre
-- ✅ CSV export hidden from staff
-- ✅ Supervisor/Admin sees all reports unchanged
+**CSV Export Format:**
+```csv
+Age Progressions Report
+Period:,February 2026
+
+Total Progressions:,N
+Transition Type,Child Name,Centre,Age at Transition (months),Date
+infant → toddler,John Doe,Sunnydale Centre,22.50,2026-02-01
+```
+
+**Data Flow:**
+1. **Real-Time**: Child saved → Signal detects category change → Event created immediately
+2. **Backfill**: Command samples age at each month → Detects transitions → Events created for history
+3. **Display**: Query events by month → Group by transition type → Render with filters
+
+**Technical Implementation:**
+
+Files Created:
+- `core/utils/age_utils.py` - Reusable functions: `calculate_age_in_months()`, `get_age_group()`
+- `core/management/commands/backfill_age_progressions.py` - Backfill command
+- `templates/reports/age_progression.html` - Report template
+
+Files Modified:
+- `core/models.py` - Added `AgeProgressionEvent` model with Meta indexes
+- `core/signals.py` - Added `track_age_progression()` post_save handler
+- `core/admin.py` - Added `AgeProgressionEventAdmin` with read-only constraints
+- `reports/views.py` - Added `age_progression_report()` view + `export_age_progression_csv()`
+- `reports/urls.py` - Added route: `/age-progressions/` → `age_progression_report`
+- `templates/reports/dashboard.html` - Added "Age Progressions" card (Violet)
+- Migration: `core/migrations/0012_alter_themesetting_accent_color_and_more.py` (includes `CreateModel AgeProgressionEvent`)
+
+**Database:**
+- Migration applied successfully
+- Table: `core_ageprogressionevent` created with 7 fields + 2 indexes
+- Query performance: Indexed on `(child_id, transition_date)` for efficient month/child lookups
+
+**Testing Results:**
+- ✅ Django system check: No issues
+- ✅ Python syntax: All files compile without errors
+- ✅ Model migration: Applied successfully
+- ✅ Admin interface: Read-only constraints working
+- ✅ View renders: Template displays correctly with month dropdown
+- ✅ Signal handler: Ready for real-time transitions
+- ✅ Backfill command: Runs without errors
+- ✅ URL routing: age-progressions path registered
+- ✅ CSV export: Format validated
+- ✅ Docker rebuild: Complete with all containers healthy
+
+**Design Decisions:**
+- **Denormalized Age Categories**: Stored as computed values in events (no persistent field on Child) for simplicity and audit-friendly immutability
+- **Calendar Month Backfill**: Transitions recorded on 1st of month, not DOB anniversary, for consistency
+- **Admin-Only Access**: Follows "Month Added Report" pattern; staff cannot access (consistent restrictions)
+- **Violet Dashboard Card**: New color identity distinguishes Age Progression as major feature
+- **Signal + Backfill Hybrid**: Real-time capture for new transitions, retroactive backfill for historical data
+
+**Future Enhancements:**
+- Cohort analysis: Track how cohorts progress through categories over time
+- Trend charts: Visualize progression velocity by age group
+- Alerts: Notify supervisors when child would age out (144+ months)
+- Age-out integration: Connect with existing Age Out Report for discharge tracking
+- Advanced filters: Staff-scoped progressions, duration in each category
 
 ---
 
-## Previous Implementation: Centre Management & Custom Theming (February 4, 2026)
+## Previous Implementation: Phase 8 - Child Record Redesign & Visit Management Hub (February 5, 2026)
 
-### A. Production Tailwind CSS Compilation
+### Child Record Page Transformation to Information Hub
 
-**Problem Solved:**
-- Previous CDN-based Tailwind CSS wasn't production-ready
-- CSS file was only 16KB, missing most utility classes
-- Root cause: Templates weren't available during CSS compilation in Docker
+**Objectives Completed:**
+1. ✅ Redesigned child_detail.html as scalable information hub
+2. ✅ Created dedicated child_visits.html page for complete visit history
+3. ✅ Fixed site visit logging bug (serializer & audit signals)
+4. ✅ Split visit forms into dedicated child/site visit forms
+5. ✅ Improved form UX with prominent button switcher
+6. ✅ Restored centre field to child visits with auto-population
+7. ✅ Created staff_visits view for visit history management
 
-**Solution Implemented:**
-- Multi-stage Docker build with Node.js + Python
-- Stage 1 (Node.js): Compiles Tailwind CSS with template scanning
-- Key fix: Copy templates BEFORE npm build so Tailwind can find class names
-- Stage 2 (Python): Final application container with compiled CSS
+**Child Record Hub Architecture:**
+
+**Page Layout (Responsive):**
+- Desktop: 2-column header (60% child info | 40% referral/caseload) + tabbed section
+- Mobile: Stacks to single column, maintains readability
+
+**Header Section (60/40 Split):**
+- **Left Column (60%)**: Compact child demographics
+  - Name, DOB, age, centre assignment
+  - Guardian 1 name and phone
+  - Status badges (overall status, caseload status, on-hold flag)
+  - Action buttons: Edit, Discharge (supervisor/admin only)
+  
+- **Right Column (40%)**: Referral source & caseload summary
+  - Referral reason badges (Cognitive, Language, Motor, Social/Emotional, etc.)
+  - Caseload assignments card (Primary/Secondary staff)
+  - Quick "Manage Caseload" link for supervisors
+
+**Tabbed Section (Below Header):**
+- **Visits Tab (Active)**: 
+  - Recent 20 visits displayed in table format
+  - Quick action buttons: "Log Visit"
+  - Link to full visit history: "View all [count] visits →"
+  - Each visit shows: Date, Staff, Visit Type, Duration (with 7+ hour warning), Centre
+  
+- **Case Notes Tab (Placeholder)**: 
+  - Disabled, grayed out
+  - Future feature
+  - JavaScript-based tab switching prepared
+  
+- **Support Plans Tab (Placeholder)**:
+  - Disabled, grayed out
+  - Future feature
+  - JavaScript-based tab switching prepared
+
+**Full Intake Details (Supervisor/Admin Only):**
+- Preserved all existing detailed sections below tabs:
+  - Address information (line1, line2, city, postal code, alternate location)
+  - Guardian 1 complete contact info (name, email, home/work/cell phones)
+  - Guardian 2 complete contact info (if exists)
+  - Referral source details (agency, contact name/phone)
+  - Program attendance (Licensed Childcare, EarlyON)
+  - Consent documentation status
+
+**New Child Visits Page (`/children/<pk>/visits/`):**
+- Paginated list of all child's visits (25 per page)
+- Comprehensive pagination controls
+- Visit details: Date, Staff, Centre, Type, Duration, Flagged status
+- Edit/View action links for each visit
+- Back-to-child-detail navigation
+- "Log New Visit" button
+
+**Technical Implementation:**
+
+Files Created:
+- `templates/core/child_visits.html` - New paginated visits list page
+
+Files Modified:
+- `core/views.py` - Added `child_visits()` view with Paginator, updated `child_detail()` to pass `total_visits_count`
+- `core/urls.py` - Added route: `/children/<int:pk>/visits/` → `child_visits`
+- `templates/core/child_detail.html` - Complete redesign with 2-column header, tabbed interface, responsive grid layout
+- `templates/core/add_visit.html` - Simplified to child visits only
+- `templates/core/add_site_visit.html` - Dedicated site visit form
+- `templates/core/dashboard.html` - Updated visit display with conditional child link
+- `core/serializers.py` - Added centre field to VisitCreateSerializer with conditional auto-population
+- `audit/signals.py` - Updated `audit_visit_changes()` to handle both child visits (child.full_name) and site visits (centre.name)
+
+**Database Queries Optimized:**
+- `child_visits()` uses: `select_related('staff', 'centre', 'visit_type')`
+- `child_detail()` uses: `select_related('centre', 'created_by', 'updated_by')` for child, includes caseload assignments
+
+**Testing Results:**
+- ✅ Docker build successful (no Tailwind errors)
+- ✅ Container running without template errors
+- ✅ Child detail page loads (HTTP 200) with new layout
+- ✅ Child visits page loads with pagination
+- ✅ Tab switching works via JavaScript
+- ✅ Responsive design verified
+- ✅ All links (edit, view, manage caseload) functional
+- ✅ Staff visit logging works (both child and site visits)
+- ✅ Audit trail captures visit changes correctly
+
+**Future Expansion Ready:**
+- Case Notes tab: Ready to be implemented with note management UI
+- Support Plans tab: Ready to be implemented with plan templates
+- Additional child info sections: Can be added as new tabs
+
+---
+
+## Previous Implementation: Phase 7 - Staff-Scoped Reporting (February 4, 2026)
 
 **Result:**
 - CSS file: 38KB minified (up from 16KB)

@@ -204,9 +204,14 @@
 
 <!-- Recent Visits Table -->
 <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6">
-        <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Visits</h3>
-        <p class="mt-1 max-w-2xl text-sm text-gray-500">Your last 10 visits</p>
+    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Visits</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Your last 10 visits</p>
+        </div>
+        <a href="{% url 'staff_visits' %}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+            View all visits →
+        </a>
     </div>
     <div class="border-t border-gray-200">
         {% if recent_visits %}
@@ -227,9 +232,13 @@
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ visit.visit_date }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
+                            {% if visit.child %}
                             <a href="{% url 'child_detail' visit.child.pk %}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
                                 {{ visit.child.full_name }}
                             </a>
+                            {% else %}
+                            <span class="text-sm text-gray-500">(Site Visit)</span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ visit.centre.name|default:"N/A" }}

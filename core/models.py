@@ -285,6 +285,31 @@ class Child(models.Model):
             unassigned_at__isnull=True
         ).select_related('staff')
         return [assignment.staff for assignment in assignments]
+    
+    def can_be_discharged_by(self, user):
+        """Check if user can discharge this child.
+        
+        Rules:
+        - Superusers and admins/supervisors can discharge any child
+        - Staff can only discharge children they are assigned to (primary or secondary)
+        """
+        if not user:
+            return False
+        
+        # Superusers, supervisors, and admins can discharge any child
+        if user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin']):
+            return True
+        
+        # Staff can only discharge children they're assigned to
+        if hasattr(user, 'role') and user.role == 'staff':
+            # Check if user is primary or secondary staff for this child
+            has_assignment = self.caseload_assignments.filter(
+                staff=user,
+                unassigned_at__isnull=True
+            ).exists()
+            return has_assignment
+        
+        return False
 
 
 class VisitType(models.Model):
@@ -624,6 +649,56 @@ class Referral(models.Model):
     
     def __str__(self):
         return f"{self.child.full_name} → {self.community_partner.name} ({self.referral_date})"
+
+
+class AgeProgressionEvent(models.Model):
+    """Track when children advance through age categories (Infant→Toddler, etc.)."""
+    
+    CATEGORY_CHOICES = [
+        ('infant', 'Infant'),
+        ('toddler', 'Toddler'),
+        ('preschooler', 'Preschooler'),
+        ('jk_sk', 'JK/SK'),
+        ('school_age', 'School Age'),
+        ('other', 'Other'),
+    ]
+    
+    child = models.ForeignKey(
+        Child,
+        on_delete=models.CASCADE,
+        related_name='age_progression_events'
+    )
+    previous_category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        help_text='Age category before transition'
+    )
+    new_category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        help_text='Age category after transition'
+    )
+    transition_date = models.DateField(
+        help_text='Date the transition occurred'
+    )
+    age_in_months = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text='Child\'s age in months at transition'
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-transition_date']
+        verbose_name = 'Age Progression Event'
+        verbose_name_plural = 'Age Progression Events'
+        indexes = [
+            models.Index(fields=['child', 'transition_date']),
+            models.Index(fields=['transition_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.child.full_name}: {self.previous_category} → {self.new_category} ({self.transition_date})"
 
 
 # Signal handlers for auto-updating caseload_status
