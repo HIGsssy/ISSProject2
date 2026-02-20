@@ -186,7 +186,7 @@ TZ=America/Toronto  # Adjust to your timezone
 
 ```bash
 # Make scripts executable
-chmod +x deploy.sh upgrade.sh backup.sh start.sh stop.sh status.sh
+chmod +x deploy.sh upgrade.sh backup.sh restore.sh setup-cron.sh start.sh stop.sh status.sh
 
 # Run deployment
 ./deploy.sh
@@ -569,86 +569,49 @@ docker-compose up -d
 
 ## Backup & Restore
 
-### Automated Backups
+> For the full guide including disaster recovery and off-site storage options, see **[BACKUP_RECOVERY.md](BACKUP_RECOVERY.md)**.
+
+### Quick Reference
+
+| Task | Command |
+|---|---|
+| Manual backup | `./backup.sh` |
+| Schedule daily backups (once) | `sudo ./setup-cron.sh` |
+| Interactive restore | `./restore.sh` |
+| View backup log | `tail -f /var/log/iss-portal-backup.log` |
+
+### What Gets Backed Up
+
+- PostgreSQL database dump (compressed `.sql.gz`)
+- `.env` configuration file (includes encryption key)
+- Media uploads (if any)
+- Restore manifest
+
+**Retention:** 30 days (configurable via `RETENTION_DAYS` in `backup.sh`)
+
+**Storage:** `<install-dir>/backups/`
+
+### Automated Scheduling
+
+Run once after deployment — the script is idempotent (safe to run again):
 
 ```bash
-# Manual backup
-./backup.sh
-
-# Schedule automated backups (daily at 2 AM)
-(crontab -l 2>/dev/null; echo "0 2 * * * cd /opt/iss-portal && ./backup.sh >> /var/log/iss-portal-backup.log 2>&1") | crontab -
+sudo ./setup-cron.sh
 ```
 
-**Backup includes:**
-- PostgreSQL database dump (compressed)
-- .env configuration file
-- Media files (if any uploaded)
-- Backup manifest with restore instructions
-
-**Retention:** 30 days by default (configurable in backup.sh)
-
-**Storage location:** `/opt/iss-portal/backups/`
+This installs a root crontab entry that runs `backup.sh` daily at 2 AM and logs to `/var/log/iss-portal-backup.log`.
 
 ### Restore from Backup
 
 ```bash
-# 1. Ensure database is running
-docker-compose up -d db
-
-# 2. Restore database
-gunzip -c backups/db_backup_YYYYMMDD_HHMMSS.sql.gz | \
-  docker-compose exec -T db psql -U iss_user -d iss_portal_db
-
-# 3. Restore .env (if needed)
-cp backups/.env_YYYYMMDD_HHMMSS .env
-
-# 4. Restore media files (if backup exists)
-tar -xzf backups/media_YYYYMMDD_HHMMSS.tar.gz
-
-# 5. Start application
-docker-compose up -d
+./restore.sh
 ```
 
-### Off-Site Backup Strategy
+The interactive script presents a numbered list of available backups, lets you choose which components to restore (database, `.env`, media), confirms before overwriting, and handles the Docker stop/restore/restart sequence automatically.
 
-**Critical:** Store backups in secure, off-site location
+### Encryption Key
 
-**Options:**
-```bash
-# 1. Copy to remote server via rsync
-rsync -avz backups/ user@backup-server:/backups/iss-portal/
-
-# 2. Upload to cloud storage (example with AWS S3)
-aws s3 sync backups/ s3://your-bucket/iss-portal-backups/
-
-# 3. Copy to mounted network drive
-cp -r backups/* /mnt/backup-drive/iss-portal/
-```
-
-**Automated off-site backup:**
-```bash
-# Add to backup.sh or create separate script
-cat > /opt/iss-portal/offsite-backup.sh << 'EOF'
-#!/bin/bash
-cd /opt/iss-portal
-./backup.sh
-rsync -avz --delete backups/ user@backup-server:/backups/iss-portal/
-EOF
-
-chmod +x /opt/iss-portal/offsite-backup.sh
-
-# Schedule (daily at 3 AM, after local backup)
-(crontab -l 2>/dev/null; echo "0 3 * * * /opt/iss-portal/offsite-backup.sh") | crontab -
-```
-
-### Encryption Key Backup
-
-**CRITICAL:** The encryption key in .env MUST be backed up securely.
-
-- Without the key, **encrypted data cannot be recovered**
-- Store key separately from database backups
-- Use password manager or secure vault
-- Never commit to version control
+> ⚠️ **Critical:** `FIELD_ENCRYPTION_KEY` in `.env` is required to decrypt records. Store it separately from database backups (e.g. a password manager). See [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md#encryption-key-safety) for details.
 
 ---
 

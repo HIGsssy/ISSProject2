@@ -353,23 +353,15 @@ Certificates auto-renew every 12 hours via certbot container.
 
 ## Backup and Restore
 
-### Backup Database
+See **[BACKUP_RECOVERY.md](BACKUP_RECOVERY.md)** for the full guide.
 
-```bash
-docker-compose exec db pg_dump -U iss_user iss_portal_db > backup_$(date +%Y%m%d).sql
-```
+| Task | Command |
+|---|---|
+| Manual backup | `./backup.sh` |
+| Schedule daily backups (once, after deploy) | `sudo ./setup-cron.sh` |
+| Interactive restore | `./restore.sh` |
 
-### Restore Database
-
-```bash
-docker-compose exec -T db psql -U iss_user iss_portal_db < backup_20260119.sql
-```
-
-### Backup Media Files
-
-```bash
-tar -czf media_backup_$(date +%Y%m%d).tar.gz media/
-```
+The backup set includes a compressed PostgreSQL dump, the `.env` file (which contains the encryption key), and any uploaded media files. Backups are retained for 30 days and stored in `backups/`.
 
 ---
 
@@ -511,7 +503,7 @@ docker-compose exec db psql -U iss_user -d iss_portal_db -c "VACUUM ANALYZE;"
 - [ ] Set DEBUG=False
 - [ ] Configure ALLOWED_HOSTS
 - [ ] Enable HTTPS with valid certificates
-- [ ] Set up database backups
+- [ ] Set up database backups (`sudo ./setup-cron.sh` — see [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md))
 - [ ] Configure firewall rules
 - [ ] Review audit logs regularly
 - [ ] Implement password policy
