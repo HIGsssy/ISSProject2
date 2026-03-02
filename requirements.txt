@@ -31,6 +31,9 @@ cryptography==41.0.7
 
 # Image processing
 Pillow==10.1.0
+
+# Brute-force login protection
+django-axes>=6.4
 # Future SSO support (commented for initial release)
 # django-allauth==0.57.0
 # social-auth-app-django==5.4.0

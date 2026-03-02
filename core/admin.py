@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, ThemeSetting, AgeProgressionEvent
+from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, ThemeSetting, AgeProgressionEvent, CaseNote
 
 
 @admin.register(Centre)
@@ -574,3 +574,26 @@ class AgeProgressionEventAdmin(admin.ModelAdmin):
         if hasattr(request.user, 'role') and request.user.role in ['admin']:
             return True
         return False
+
+
+@admin.register(CaseNote)
+class CaseNoteAdmin(admin.ModelAdmin):
+    """Admin interface for CaseNote model."""
+
+    list_display = ['child', 'author', 'created_at', 'is_edited', 'is_deleted', 'deleted_by', 'deleted_at']
+    list_filter = ['is_deleted', 'created_at']
+    search_fields = ['author__first_name', 'author__last_name', 'child__first_name', 'child__last_name']
+    ordering = ['-created_at']
+    readonly_fields = ['author', 'child', 'created_at', 'updated_at', 'updated_by', 'is_deleted', 'deleted_by', 'deleted_at']
+
+    def get_queryset(self, request):
+        """Show all notes including soft-deleted ones in admin."""
+        return CaseNote.objects.all().select_related('author', 'child', 'updated_by', 'deleted_by')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser or (
+            hasattr(request.user, 'role') and request.user.role in ['admin']
+        )

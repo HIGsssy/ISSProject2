@@ -251,7 +251,17 @@ def child_detail(request, pk):
     
     # Check if current user can discharge this child
     staff_can_discharge = child.can_be_discharged_by(request.user)
-    
+
+    # Case notes - most recent 50, not deleted
+    case_notes = child.case_notes.filter(
+        is_deleted=False
+    ).select_related('author', 'updated_by').order_by('-created_at')[:50]
+
+    can_delete_notes = (
+        request.user.is_superuser or
+        (hasattr(request.user, 'role') and request.user.role in ['supervisor', 'admin'])
+    )
+
     context = {
         'child': child,
         'caseload_assignments': caseload_assignments,
@@ -260,6 +270,8 @@ def child_detail(request, pk):
         'referrals': referrals,
         'referral_status_filter': referral_status_filter,
         'staff_can_discharge': staff_can_discharge,
+        'case_notes': case_notes,
+        'can_delete_notes': can_delete_notes,
     }
     
     return render(request, 'core/child_detail.html', context)

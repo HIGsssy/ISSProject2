@@ -3,7 +3,7 @@ Django REST Framework serializers for core models.
 """
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Centre, Child, VisitType, Visit, CaseloadAssignment
+from .models import Centre, Child, VisitType, Visit, CaseloadAssignment, CaseNote
 from accounts.models import User
 
 
@@ -370,3 +370,57 @@ class VisitCreateSerializer(serializers.ModelSerializer):
         
         visit = Visit.objects.create(**validated_data)
         return visit
+
+
+class CaseNoteSerializer(serializers.ModelSerializer):
+    """Serializer for CaseNote model."""
+
+    author_name = serializers.SerializerMethodField()
+    author_role = serializers.CharField(source='author.role', read_only=True)
+    updated_by_name = serializers.SerializerMethodField()
+    is_edited = serializers.ReadOnlyField()
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CaseNote
+        fields = [
+            'id', 'child', 'author', 'author_name', 'author_role',
+            'content', 'created_at', 'updated_at', 'updated_by',
+            'updated_by_name', 'is_edited', 'is_deleted',
+            'deleted_by', 'deleted_at', 'can_edit', 'can_delete',
+        ]
+        read_only_fields = [
+            'id', 'child', 'author', 'created_at', 'updated_at', 'updated_by',
+            'is_deleted', 'deleted_by', 'deleted_at',
+        ]
+
+    def get_author_name(self, obj):
+        return obj.author.get_full_name() or obj.author.username
+
+    def get_updated_by_name(self, obj):
+        if obj.updated_by:
+            return obj.updated_by.get_full_name() or obj.updated_by.username
+        return None
+
+    def get_can_edit(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return False
+        user = request.user
+        if user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin']):
+            return True
+        return obj.author == user
+
+    def get_can_delete(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return False
+        user = request.user
+        return user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])
+
+    def update(self, instance, validated_data):
+        request = self.context.get('request')
+        if request and request.user:
+            validated_data['updated_by'] = request.user
+        return super().update(instance, validated_data)

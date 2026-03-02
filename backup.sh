@@ -2,7 +2,24 @@
 # ISS Portal - Backup Script
 # Creates a complete backup of the database and configuration
 
-set -e  # Exit on error
+set -eo pipefail  # Exit on error, fail on pipe errors
+
+# Preflight: .env must exist to read database credentials
+if [ ! -f .env ]; then
+    echo "ERROR: .env file not found. Cannot read database credentials."
+    echo "Copy .env.example to .env and configure it first."
+    exit 1
+fi
+
+# Load environment variables (POSTGRES_USER, POSTGRES_DB, etc.)
+set -a
+# shellcheck source=.env
+source .env
+set +a
+
+# Apply defaults in case variables are absent from .env
+POSTGRES_USER="${POSTGRES_USER:-iss_user}"
+POSTGRES_DB="${POSTGRES_DB:-iss_portal_db}"
 
 # Configuration
 BACKUP_DIR="backups"
@@ -34,7 +51,12 @@ fi
 
 # Backup database
 echo "Backing up database..."
-docker-compose exec -T db pg_dump -U iss_user iss_portal_db | gzip > "$BACKUP_DIR/$DB_BACKUP_FILE"
+docker-compose exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_DIR/$DB_BACKUP_FILE"
+if [ ! -s "$BACKUP_DIR/$DB_BACKUP_FILE" ]; then
+    echo "ERROR: pg_dump produced an empty file. Removing and aborting."
+    rm -f "$BACKUP_DIR/$DB_BACKUP_FILE"
+    exit 1
+fi
 DB_SIZE=$(du -h "$BACKUP_DIR/$DB_BACKUP_FILE" | cut -f1)
 echo "✓ Database backed up: $BACKUP_DIR/$DB_BACKUP_FILE ($DB_SIZE)"
 echo ""
@@ -75,7 +97,7 @@ Restore Instructions:
 2. Copy $ENV_BACKUP_FILE to .env
 3. Start database: docker-compose up -d db
 4. Restore database:
-   gunzip -c $DB_BACKUP_FILE | docker-compose exec -T db psql -U iss_user -d iss_portal_db
+   gunzip -c $DB_BACKUP_FILE | docker-compose exec -T db psql -U $POSTGRES_USER -d $POSTGRES_DB
 5. Restore media (if exists):
    tar -xzf media_${TIMESTAMP}.tar.gz
 6. Start application: docker-compose up -d
@@ -107,7 +129,9 @@ echo "Files created:"
 ls -lh "$BACKUP_DIR" | grep "$TIMESTAMP"
 echo ""
 echo "To restore this backup:"
-echo "  gunzip -c $BACKUP_DIR/$DB_BACKUP_FILE | docker-compose exec -T db psql -U iss_user -d iss_portal_db"
+echo "  ./restore.sh   (interactive)"
+echo "  -- or manually:"
+echo "  gunzip -c $BACKUP_DIR/$DB_BACKUP_FILE | docker-compose exec -T db psql -U $POSTGRES_USER -d $POSTGRES_DB"
 echo ""
 echo "IMPORTANT: Store backups in a secure, off-site location!"
 echo "Consider copying to: cloud storage, external drive, or backup server"
