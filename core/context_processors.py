@@ -1,6 +1,7 @@
 """
 Context processors for injecting global template variables.
 """
+from django.conf import settings as django_settings
 from .models import ThemeSetting
 
 
@@ -35,3 +36,15 @@ def theme_settings(request):
             'theme_settings': None,
             'theme_css_variables': {},
         }
+
+
+def entra_sso_settings(request):
+    """
+    Inject Entra SSO configuration into all template contexts.
+    
+    Makes entra_sso_enabled available in templates so the login page
+    can show appropriate messaging when SSO is active.
+    """
+    return {
+        'entra_sso_enabled': getattr(django_settings, 'ENTRA_PROXY_AUTH_ENABLED', False),
+    }

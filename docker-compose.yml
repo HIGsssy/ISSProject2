@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: iss_portal_web
-    command: gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 60 --access-logfile - --error-logfile - iss_portal.wsgi:application
+    command: gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 75 --keep-alive 65 --access-logfile - --error-logfile - iss_portal.wsgi:application
     volumes:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
