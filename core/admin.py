@@ -320,6 +320,8 @@ class VisitAdmin(admin.ModelAdmin):
     
     def child_link(self, obj):
         """Link to child admin page."""
+        if obj.child is None:
+            return '-'
         url = reverse('admin:core_child_change', args=[obj.child.pk])
         return format_html('<a href="{}">{}</a>', url, obj.child.full_name)
     child_link.short_description = 'Child'
