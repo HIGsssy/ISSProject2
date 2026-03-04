@@ -155,7 +155,7 @@ def audit_visit_changes(sender, instance, created, **kwargs):
                 new_value=values['new'],
                 metadata={
                     'warning': 'Visit record modified after creation',
-                    'child': instance.child.full_name,
+                    'child': instance.child.full_name if instance.child else 'Site Visit',
                     'visit_date': str(instance.visit_date)
                 }
             )
@@ -165,14 +165,16 @@ def audit_visit_changes(sender, instance, created, **kwargs):
 def audit_visit_deletion(sender, instance, **kwargs):
     """Audit log for Visit deletion."""
     user = get_current_user()
+    child_name = instance.child.full_name if instance.child else 'Site Visit'
+    staff_name = instance.staff.get_full_name() if instance.staff else 'Unknown'
     AuditLog.log_action(
         user=user,
         entity=instance,
         action='deleted',
-        old_value=f"Visit for {instance.child.full_name} on {instance.visit_date} deleted",
+        old_value=f"Visit for {child_name} on {instance.visit_date} deleted",
         metadata={
-            'child': instance.child.full_name,
-            'staff': instance.staff.get_full_name(),
+            'child': child_name,
+            'staff': staff_name,
             'visit_date': str(instance.visit_date),
             'duration': instance.duration_hours
         }
