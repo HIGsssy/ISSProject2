@@ -170,7 +170,7 @@ A full case notes system was implemented for child records, covering the complet
   - Child demographics (name, DOB, age, centre, guardian contact)
   - Referral reasons (badge display)
   - Compact caseload summary with manage button
-  - Status badges (overall, caseload, on-hold flags)
+  - Status badges (overall, caseload, on-monitor flags)
   
 - **Responsive Tabs Section** (below header):
   - Active "Visits" tab: Shows last 20 visits with link to full history
@@ -311,12 +311,12 @@ A full case notes system was implemented for child records, covering the complet
 **New System:** Three separate fields:
 1. **overall_status**: `active` or `discharged`
 2. **caseload_status**: `caseload`, `non_caseload`, or `awaiting_assignment`
-3. **on_hold**: Boolean flag for temporarily paused children
+3. **on_hold**: Boolean flag for "On Monitor" (temporarily paused) children
 
 **Why This Change:**
 - Clearer separation of concerns
 - Better tracking of assignment status
-- On-hold can apply to both active and caseload children
+- On-monitor can apply to both active and caseload children
 - CSV imports now default to "awaiting_assignment"
 - Auto-updates when staff assignments change
 
@@ -696,8 +696,8 @@ ISSProject2/
 - Supervisors/admins can manually override
 - Discharge process sets this to 'non_caseload'
 
-#### 3. On Hold Flag (`on_hold`)
-**Purpose:** Temporarily pause a child's record while keeping them active
+#### 3. On Monitor Flag (`on_hold`)
+**Purpose:** Temporarily place a child's record on monitor while keeping them active
 
 **Values:** Boolean (True/False)
 
@@ -721,7 +721,7 @@ ISSProject2/
 .caseload-status-non_caseload { background: #8b5cf6; color: white; }
 .caseload-status-awaiting_assignment { background: #f59e0b; color: white; }
 
-/* On Hold */
+/* On Monitor */
 .on-hold-badge { background: #fef3c7; color: #92400e; border: 2px solid #fbbf24; }
 ```
 
@@ -737,7 +737,7 @@ ISSProject2/
 </span>
 {% if child.on_hold %}
 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full on-hold-badge">
-    On Hold
+    On Monitor
 </span>
 {% endif %}
 ```
@@ -878,7 +878,7 @@ def update_child_caseload_status_on_delete(sender, instance, **kwargs):
 - Search by name/guardian
 - Overall Status dropdown (All, Active, Discharged)
 - Caseload Status dropdown (All, Caseload, Non-Caseload, Awaiting Assignment)
-- On Hold dropdown (All, On Hold, Active)
+- On Monitor dropdown (All, On Monitor, Active)
 
 **my_caseload.html:**
 - Toggle buttons: Primary / Secondary / All Non-Caseload / All Children
@@ -896,7 +896,7 @@ def update_child_caseload_status_on_delete(sender, instance, **kwargs):
 **Edit Child:**
 - Same fields as Add Child, plus:
 - Caseload Status dropdown (supervisors/admins only)
-- On Hold checkbox (all users)
+- On Monitor checkbox (all users)
 - Cannot change overall_status here (use Discharge button)
 
 **Discharge Child:**
@@ -1545,7 +1545,7 @@ else:
 **3. Filters:**
 - [ ] Filter by Overall Status (All/Active/Discharged)
 - [ ] Filter by Caseload Status (All/Caseload/Non-Caseload/Awaiting Assignment)
-- [ ] Filter by On Hold (All/On Hold/Active)
+- [ ] Filter by On Monitor (All/On Monitor/Active)
 - [ ] Combine multiple filters
 
 **4. Status Updates:**
@@ -1787,7 +1787,7 @@ Child.objects.filter(caseload_status='awaiting_assignment')
 # Discharged children
 Child.objects.filter(overall_status='discharged')
 
-# On hold children
+# On monitor children
 Child.objects.filter(on_hold=True)
 
 # Staff's primary caseload

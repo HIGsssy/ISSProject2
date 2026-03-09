@@ -35,7 +35,7 @@ class ChildCSVImporter:
     - end_date (YYYY-MM-DD, for discharged children)
     - discharge_reason (for discharged children)
     - notes
-    - on_hold (true/false, defaults to false)
+    - on_hold (true/false, defaults to false) — "On Monitor" status
     - referral_source_type (parent_guardian/other_agency)
     - referral_source_name, referral_source_phone
     - referral_agency_name, referral_agency_address

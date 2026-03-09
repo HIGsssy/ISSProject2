@@ -197,10 +197,10 @@ class ChildAdmin(admin.ModelAdmin):
         """Display on-hold indicator."""
         if obj.on_hold:
             return format_html(
-                '<span style="background-color: #ffc107; color: black; padding: 3px 10px; border-radius: 3px; font-weight: bold;">ON HOLD</span>'
+                '<span style="background-color: #ffc107; color: black; padding: 3px 10px; border-radius: 3px; font-weight: bold;">ON MONITOR</span>'
             )
         return '-'
-    on_hold_indicator.short_description = 'On Hold'
+    on_hold_indicator.short_description = 'On Monitor'
     
     def primary_staff_display(self, obj):
         """Display primary staff member."""

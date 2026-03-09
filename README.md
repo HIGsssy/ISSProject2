@@ -170,7 +170,7 @@ For local development without Docker:
 
 Children can have the following statuses:
 - **Active**: Receiving regular services
-- **On Hold**: Temporarily not receiving services
+- **On Monitor**: Temporarily not receiving services
 - **Discharged**: No longer receiving services
 - **Non-Caseload**: Receiving services without formal caseload assignment
 

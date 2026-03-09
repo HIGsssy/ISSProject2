@@ -541,7 +541,7 @@ def edit_child(request, pk):
                 if new_caseload_status and child.overall_status == 'active':
                     child.caseload_status = new_caseload_status
             
-            # On hold status
+            # On monitor status
             child.on_hold = request.POST.get('on_hold') == 'on'
             
             # Notes

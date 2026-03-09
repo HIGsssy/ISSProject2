@@ -68,7 +68,7 @@ body.theme-background::before {
   background-color: var(--warning, #f59e0b) !important;
 }
 
-/* On Hold Badge */
+/* On Monitor Badge */
 .on-hold-badge {
   @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full;
   background-color: #fef3c7 !important;

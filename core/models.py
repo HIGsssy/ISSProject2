@@ -188,7 +188,7 @@ class Child(models.Model):
     
     on_hold = models.BooleanField(
         default=False,
-        help_text='Indicates if child is temporarily on hold (not actively seen)'
+        help_text='Indicates if child is temporarily on monitor (not actively seen)'
     )
     
     start_date = models.DateField(default=get_today)

@@ -25,7 +25,7 @@ This document describes the CSV file format for bulk importing child records int
 |-------|-------------|---------|
 | `centre` | Centre name (must match existing centre exactly) | Main Centre |
 | `start_date` | Start date in YYYY-MM-DD format | 2024-01-01 |
-| `on_hold` | Whether child is on hold (true/false) | false |
+| `on_hold` | Whether child is on monitor (true/false) | false |
 
 ### Address Information
 | Field | Description | Example |
