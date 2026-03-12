@@ -174,7 +174,6 @@ def all_children(request):
         children = children.order_by('created_at')
     else:
         sort = 'name_az'
-        children = children.order_by('last_name', 'first_name')
     
     # Get staff members (only users with 'staff' role) for filter dropdown
     staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
@@ -182,6 +181,10 @@ def all_children(request):
     # Fetch all matching children and prepare for search filtering
     all_children = list(children)
     total_before_search = len(all_children)
+    
+    # Sort by decrypted name in Python (encrypted fields can't be sorted in DB)
+    if sort == 'name_az':
+        all_children.sort(key=lambda c: (c.first_name.lower(), c.last_name.lower()))
     
     # Apply search filter on encrypted fields (application-level)
     search = request.GET.get('search', '').strip()
