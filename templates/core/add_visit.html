@@ -64,28 +64,30 @@
                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
         </div>
         
-        <!-- Time Fields (Mobile-Friendly) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-                <label for="start_time" class="block text-sm font-medium text-gray-700 mb-2">
-                    Start Time <span class="text-red-500">*</span>
-                </label>
-                <input type="time" id="start_time" name="start_time" required
-                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            
-            <div>
-                <label for="end_time" class="block text-sm font-medium text-gray-700 mb-2">
-                    End Time <span class="text-red-500">*</span>
-                </label>
-                <input type="time" id="end_time" name="end_time" required
-                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-            </div>
-        </div>
-        
-        <!-- Duration Display -->
-        <div id="durationDisplay" class="hidden p-3 bg-blue-50 rounded-md">
-            <span class="text-sm text-blue-800">Duration: <span id="durationText" class="font-semibold"></span></span>
+        <!-- Duration -->
+        <div>
+            <label for="duration" class="block text-sm font-medium text-gray-700 mb-2">
+                Duration <span class="text-red-500">*</span>
+            </label>
+            <select id="duration" required
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Select duration...</option>
+                <option value="1">1 hour</option>
+                <option value="1.5">1.5 hours</option>
+                <option value="2">2 hours</option>
+                <option value="2.5">2.5 hours</option>
+                <option value="3">3 hours</option>
+                <option value="3.5">3.5 hours</option>
+                <option value="4">4 hours</option>
+                <option value="4.5">4.5 hours</option>
+                <option value="5">5 hours</option>
+                <option value="5.5">5.5 hours</option>
+                <option value="6">6 hours</option>
+                <option value="6.5">6.5 hours</option>
+                <option value="7">7 hours</option>
+            </select>
+            <input type="hidden" id="start_time" name="start_time" value="09:00">
+            <input type="hidden" id="end_time" name="end_time" value="">
         </div>
         
         <!-- Warning for 7+ hour visits -->
@@ -162,44 +164,28 @@
     document.getElementById('visit_date').value = today;
     document.getElementById('visit_date').setAttribute('max', today);
     
-    // Calculate duration when times change
-    function calculateDuration() {
-        const startTime = document.getElementById('start_time').value;
-        const endTime = document.getElementById('end_time').value;
-        
-        if (startTime && endTime) {
-            const start = new Date('2000-01-01 ' + startTime);
-            let end = new Date('2000-01-01 ' + endTime);
+    // Update hidden end_time from duration selection
+    function updateEndTime() {
+        const duration = parseFloat(document.getElementById('duration').value);
+        if (duration) {
+            const totalMinutes = duration * 60;
+            const endHour = 9 + Math.floor(totalMinutes / 60);
+            const endMin = totalMinutes % 60;
+            const endTime = String(endHour).padStart(2, '0') + ':' + String(endMin).padStart(2, '0');
+            document.getElementById('end_time').value = endTime;
             
-            // Handle overnight visits
-            if (end < start) {
-                end = new Date('2000-01-02 ' + endTime);
-            }
-            
-            const diff = (end - start) / 1000 / 60 / 60; // hours
-            
-            if (diff > 0) {
-                const hours = Math.floor(diff);
-                const minutes = Math.round((diff - hours) * 60);
-                
-                document.getElementById('durationText').textContent = `${hours}h ${minutes}m`;
-                document.getElementById('durationDisplay').classList.remove('hidden');
-                
-                // Show warning for 7+ hour visits
-                if (diff >= 7) {
-                    document.getElementById('durationWarning').classList.remove('hidden');
-                } else {
-                    document.getElementById('durationWarning').classList.add('hidden');
-                }
+            if (duration >= 7) {
+                document.getElementById('durationWarning').classList.remove('hidden');
             } else {
-                document.getElementById('durationDisplay').classList.add('hidden');
                 document.getElementById('durationWarning').classList.add('hidden');
             }
+        } else {
+            document.getElementById('end_time').value = '';
+            document.getElementById('durationWarning').classList.add('hidden');
         }
     }
     
-    document.getElementById('start_time').addEventListener('change', calculateDuration);
-    document.getElementById('end_time').addEventListener('change', calculateDuration);
+    document.getElementById('duration').addEventListener('change', updateEndTime);
     
     // Populate centre from child selection
     document.getElementById('child').addEventListener('change', async function() {
