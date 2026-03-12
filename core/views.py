@@ -423,6 +423,63 @@ def staff_visits(request):
 
 
 @login_required
+def all_visits(request):
+    """View all visits across all staff - Supervisors and Admins only."""
+    user = request.user
+
+    # Permission check
+    if not (user.is_superuser or (hasattr(user, 'role') and user.role in ['supervisor', 'admin'])):
+        return redirect('dashboard')
+
+    # Start with all visits
+    visits = Visit.objects.select_related(
+        'child', 'staff', 'centre', 'visit_type'
+    ).order_by('-visit_date', '-start_time')
+
+    # Apply filters from query parameters
+    staff_filter = request.GET.get('staff', '')
+    visit_type_filter = request.GET.get('visit_type', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    site_visits_only = request.GET.get('site_visits_only', '')
+
+    if staff_filter:
+        visits = visits.filter(staff_id=staff_filter)
+    if visit_type_filter:
+        visits = visits.filter(visit_type_id=visit_type_filter)
+    if date_from:
+        visits = visits.filter(visit_date__gte=date_from)
+    if date_to:
+        visits = visits.filter(visit_date__lte=date_to)
+    if site_visits_only:
+        visits = visits.filter(child__isnull=True)
+
+    # Pagination
+    paginator = Paginator(visits, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Filter dropdown data
+    staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
+    visit_types = VisitType.objects.filter(is_active=True).order_by('name')
+
+    context = {
+        'page_obj': page_obj,
+        'visits': page_obj.object_list,
+        'total_visits_count': paginator.count,
+        'staff_members': staff_members,
+        'visit_types': visit_types,
+        'staff_filter': staff_filter,
+        'visit_type_filter': visit_type_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'site_visits_only': site_visits_only,
+    }
+
+    return render(request, 'core/all_visits.html', context)
+
+
+@login_required
 @login_required
 def visit_detail(request, pk):
     """Visit detail view - all users can view, only certain users can edit."""

@@ -25,6 +25,7 @@ urlpatterns = [
     path('visits/add/', views.add_visit, name='add_visit'),
     path('visits/add-site/', views.add_site_visit, name='add_site_visit'),
     path('visits/', views.staff_visits, name='staff_visits'),
+    path('visits/all/', views.all_visits, name='all_visits'),
     path('visits/<int:pk>/', views.visit_detail, name='visit_detail'),
     path('visits/<int:pk>/edit/', views.edit_visit, name='edit_visit'),
     path('community-partners/', views.community_partners, name='community_partners'),
