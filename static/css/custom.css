@@ -45,6 +45,13 @@
     border: 2px solid #fbbf24 !important;
 }
 
+/* New to Program Badge */
+.new-to-program-badge {
+    background-color: #ccfbf1 !important;
+    color: #0f766e !important;
+    border: 2px solid #14b8a6 !important;
+}
+
 /* Legacy status classes for backward compatibility */
 .status-active {
     background-color: #10b981;

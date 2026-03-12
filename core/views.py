@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
+from datetime import timedelta
 from django.core.paginator import Paginator
 from .models import Child, Visit, Centre, VisitType, CaseloadAssignment, CommunityPartner, Referral
 from accounts.models import User
@@ -159,6 +160,22 @@ def all_children(request):
             caseload_assignments__unassigned_at__isnull=True
         ).distinct()
     
+    new_to_program_filter = request.GET.get('new_to_program', 'all')
+    if new_to_program_filter == 'yes':
+        children = children.filter(created_at__gte=timezone.now() - timedelta(days=30))
+    elif new_to_program_filter == 'no':
+        children = children.filter(created_at__lt=timezone.now() - timedelta(days=30))
+    
+    # Apply sorting
+    sort = request.GET.get('sort', 'name_az')
+    if sort == 'date_newest':
+        children = children.order_by('-created_at')
+    elif sort == 'date_oldest':
+        children = children.order_by('created_at')
+    else:
+        sort = 'name_az'
+        children = children.order_by('last_name', 'first_name')
+    
     # Get staff members (only users with 'staff' role) for filter dropdown
     staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
     
@@ -203,6 +220,8 @@ def all_children(request):
         'caseload_status_filter': caseload_status_filter,
         'on_hold_filter': on_hold_filter,
         'staff_filter': staff_filter,
+        'new_to_program_filter': new_to_program_filter,
+        'sort': sort,
         'staff_members': staff_members,
         'search': search,
         'search_applied': search_applied,

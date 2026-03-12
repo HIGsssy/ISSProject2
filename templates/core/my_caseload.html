@@ -69,6 +69,11 @@
                     On Monitor
                 </span>
                 {% endif %}
+                {% if child.is_new_to_program %}
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full new-to-program-badge">
+                    New
+                </span>
+                {% endif %}
             </div>
         </div>
         

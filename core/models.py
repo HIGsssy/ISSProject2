@@ -271,6 +271,11 @@ class Child(models.Model):
         """Check if child is awaiting assignment."""
         return self.caseload_status == 'awaiting_assignment'
     
+    @property
+    def is_new_to_program(self):
+        """Check if child was added within the last 30 days."""
+        return (timezone.now() - self.created_at).days <= 30
+
     def get_primary_staff(self):
         """Get the primary staff member assigned to this child."""
         assignment = self.caseload_assignments.filter(
