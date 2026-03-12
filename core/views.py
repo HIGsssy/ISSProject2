@@ -152,6 +152,16 @@ def all_children(request):
     elif on_hold_filter == 'no':
         children = children.filter(on_hold=False)
     
+    staff_filter = request.GET.get('staff', 'all')
+    if staff_filter != 'all':
+        children = children.filter(
+            caseload_assignments__staff_id=staff_filter,
+            caseload_assignments__unassigned_at__isnull=True
+        ).distinct()
+    
+    # Get staff members (only users with 'staff' role) for filter dropdown
+    staff_members = User.objects.filter(role='staff').order_by('last_name', 'first_name')
+    
     # Fetch all matching children and prepare for search filtering
     all_children = list(children)
     total_before_search = len(all_children)
@@ -192,6 +202,8 @@ def all_children(request):
         'overall_status_filter': overall_status_filter,
         'caseload_status_filter': caseload_status_filter,
         'on_hold_filter': on_hold_filter,
+        'staff_filter': staff_filter,
+        'staff_members': staff_members,
         'search': search,
         'search_applied': search_applied,
         'view_type': 'all',
